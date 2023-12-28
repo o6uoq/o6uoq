@@ -13,8 +13,23 @@ jobs:
     - name: Build Docker image
       run: docker build -t fitbit-app .
 
+    - name: Create environment file
+      run: |
+        cat << EOF > .env
+        # Fitbit environment variables
+        FITBIT_AUTH_URI={{ env.FITBIT_AUTH_URI}}
+        FITBIT_EXPIRES_AT=${{ env.FITBIT_EXPIRES_AT }}
+        FITBIT_REDIRECT_URI=${{ env.FITBIT_EXPIRES_AT }}
+        FITBIT_TOKEN_REQUEST_URI=${{ env.FITBIT_EXPIRES_AT }}
+        # Fitbit secrets
+        FITBIT_ACCESS_TOKEN={{ secrets.FITBIT_ACCESS_TOKEN }}
+        FITBIT_CLIENT_ID={{ secrets.FITBIT_CLIENT_ID }}
+        FITBIT_CLIENT_SECRET={{ secrets.FITBIT_CLIENT_SECRET }}
+        FITBIT_REFRESH_TOKEN={{ secrets.FITBIT_REFRESH_TOKEN }}
+        EOF
+
     - name: Run Fitbit Tokens Command
-      run: docker run fitbit-app python fitbit.py fitbit_tokens
+      run: docker run --env-file .env fitbit-app python fitbit.py fitbit_tokens
 
     - name: Upload Token Data as Artifact
       uses: actions/upload-artifact@v2
@@ -23,4 +38,4 @@ jobs:
         path: fitbit_token_data.json  
   
     - name: Run Fitbit Steps Command
-      run: docker run my-fitbit-app python fitbit.py steps
+      run: docker run --env-file .env my-fitbit-app python fitbit.py steps
