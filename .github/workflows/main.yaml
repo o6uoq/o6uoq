@@ -34,11 +34,11 @@ jobs:
     - name: Run Fitbit Tokens Command
       run: docker run --env-file .env fitbit-app python fitbit.py fitbit_tokens
 
-    - name: Upload Token Data as Artifact
+    - name: Upload Fitbit Tokens output to GitHub Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: token-data
-        path: fitbit_token_data.json  
+        name: fitbit-tokens
+        path: fitbit_tokens.json
   
     - name: Run Fitbit Steps Command
       run: docker run --env-file .env fitbit-app python fitbit.py steps

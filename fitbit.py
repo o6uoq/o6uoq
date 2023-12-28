@@ -122,8 +122,9 @@ def fitbit_tokens():
         'FITBIT_EXPIRES_AT': FITBIT_EXPIRES_AT
     }
 
-    with open('fitbit_token_data.json', 'w') as file:
+    with open('fitbit_tokens.json', 'w') as file:
         json.dump(token_data, file, indent=4)
+        file.write('\n')  # Add a newline at the end of the file
 
 def refresh_token():
     """Refresh the access token using the refresh token."""
@@ -163,7 +164,7 @@ def is_token_expired():
     expires_at = int(FITBIT_EXPIRES_AT) if FITBIT_EXPIRES_AT.isdigit() else 0
     return current_time >= expires_at
 
-def fetch_steps():
+def fitbit_steps():
     if is_token_expired():
         refresh_token()
     try:
@@ -176,7 +177,7 @@ def fetch_steps():
     except requests.exceptions.RequestException as e:
         print(f"\nError fetching steps: {e}")
 
-def fetch_sleep():
+def fitbit_sleep():
     if is_token_expired():
         refresh_token()
     try:
@@ -191,23 +192,21 @@ def fetch_sleep():
         print(f"\nError fetching sleep data: {e}")
         
 def main():
-    """Main function to handle the script execution."""
     if len(sys.argv) > 1:
         command = sys.argv[1]
-        if command == 'auth':
+        if command == 'fitbit-auth':
             fitbit_auth()
-        elif command == 'steps':
-            fetch_steps()
-        elif command == 'sleep':
-            fetch_sleep()
-        elif command == 'fitbit_tokens':
+        elif command == 'fitbit-steps':
+            fitbit_steps()
+        elif command == 'fitbit-sleep':
+            fitbit_sleep()
+        elif command == 'fitbit-tokens':
             fitbit_tokens()
         else:
-            print("\nInvalid command. Use 'auth', 'steps', 'sleep', or 'fitbit_tokens'.")
+            print("\nInvalid command. Use 'fitbit-auth', 'fitbit-steps', 'fitbit-sleep', or 'fitbit-tokens'.")
     else:
-        print("\nUsage: python script-name.py {auth|steps|sleep|fitbit_tokens}")
-
-    print()
+        print("\nUsage: python script-name.py {fitbit-auth|fitbit-steps|fitbit-sleep|fitbit-tokens}")
+    print()  # New line added here
 
 if __name__ == "__main__":
     main()
