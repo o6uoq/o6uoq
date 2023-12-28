@@ -24,6 +24,9 @@ jobs:
         FITBIT_CLIENT_SECRET=${{ secrets.FITBIT_CLIENT_SECRET }}
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
         EOF
+  
+    - name: Display .env file contents
+      run: cat .env
 
     - name: Build Docker image
       run: docker build -t fitbit-app .
