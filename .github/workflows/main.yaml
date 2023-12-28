@@ -38,4 +38,4 @@ jobs:
         path: fitbit_token_data.json  
   
     - name: Run Fitbit Steps Command
-      run: docker run --env-file .env my-fitbit-app python fitbit.py steps
+      run: docker run --env-file .env fitbit-app python fitbit.py steps
