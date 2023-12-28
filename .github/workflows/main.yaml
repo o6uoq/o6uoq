@@ -1,0 +1,26 @@
+name: Fitbit Workflow
+
+on: [push]
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Build Docker image
+      run: docker build -t fitbit-app .
+
+    - name: Run Fitbit Tokens Command
+      run: docker run fitbit-app python fitbit.py fitbit_tokens
+
+    - name: Upload Token Data as Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: token-data
+        path: fitbit_token_data.json  
+  
+    - name: Run Fitbit Steps Command
+      run: docker run my-fitbit-app python fitbit.py steps
