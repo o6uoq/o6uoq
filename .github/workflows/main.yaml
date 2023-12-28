@@ -10,9 +10,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Build Docker image
-      run: docker build -t fitbit-app .
-
     - name: Create environment file
       run: |
         cat << EOF > .env
@@ -27,6 +24,9 @@ jobs:
         FITBIT_CLIENT_SECRET=${{ secrets.FITBIT_CLIENT_SECRET }}
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
         EOF
+
+    - name: Build Docker image
+      run: docker build -t fitbit-app .
 
     - name: Run Fitbit Tokens Command
       run: docker run --env-file .env fitbit-app python fitbit.py fitbit_tokens
