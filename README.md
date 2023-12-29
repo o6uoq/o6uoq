@@ -1,7 +1,17 @@
 ### Hi there 👋
 
+<samp>
+G'day! 👋🏼
+
+I'm David A. Symons, otherwise known as David Dolph.
+
+- 🚶🏼‍♂️ So far today, I have walked $FITBIT_STEPS steps and slept for $FITBIT_SLEEP
+
+</samp>
+
 <!--
 **o6uoq/o6uoq** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+
 
 Here are some ideas to get you started:
 

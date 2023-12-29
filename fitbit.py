@@ -173,7 +173,7 @@ def fitbit_steps():
         response.raise_for_status()
         data = response.json()
         steps = data['summary']['steps']
-        print("\nSteps taken today:", steps)
+        print("\n" + str(steps))
     except requests.exceptions.RequestException as e:
         print(f"\nError fetching steps: {e}")
 
@@ -187,7 +187,7 @@ def fitbit_sleep():
         data = response.json()
         minutes = data['summary']['totalMinutesAsleep']
         hours, minutes_left = divmod(minutes, 60)
-        print("\nLast recorded sleep duration:", hours, "hours and", minutes_left, "minutes")
+        print(f"\n{hours}h {minutes_left}m")
     except requests.exceptions.RequestException as e:
         print(f"\nError fetching sleep data: {e}")
         

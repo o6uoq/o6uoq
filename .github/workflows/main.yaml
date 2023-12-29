@@ -34,8 +34,14 @@ jobs:
     - name: Run Fitbit Tokens Command
       run: docker run --env-file .env -v ${{ github.workspace }}:/app fitbit-app python fitbit.py fitbit-tokens
 
-    - name: Run Fitbit Steps Command
-      run: docker run --env-file .env fitbit-app python fitbit.py fitbit-steps
+    - name: Update README
+      run: |
+        FITBIT_STEPS=$(docker run your-docker-image python fitbit.py fitbit-steps)
+        FITBIT_SLEEP=$(docker run your-docker-image python fitbit.py fitbit-sleep)
+        sed -i "s/^So far today, I have walked .* steps and slept for .*$/So far today, I have walked $FITBIT_STEPS steps and slept for $FITBIT_SLEEP/" README.md
+
+    - name: Display README.md contents
+      run: cat README.md
 
     - name: Upload Fitbit Tokens output to GitHub Artifacts
       uses: actions/upload-artifact@v4
