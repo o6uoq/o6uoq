@@ -35,9 +35,6 @@ jobs:
         echo "FITBIT_REDIRECT_URI: $FITBIT_REDIRECT_URI"
         echo "FITBIT_TOKEN_REQUEST_URI: $FITBIT_TOKEN_REQUEST_URI"
 
-    - name: List All Environment Variables
-      run: env
-
     - name: Build Docker image
       run: docker build -t fitbit-app .
 
