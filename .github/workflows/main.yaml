@@ -24,9 +24,6 @@ jobs:
         FITBIT_CLIENT_SECRET=${{ secrets.FITBIT_CLIENT_SECRET }}
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
         EOF
-  
-    - name: Display .env file contents
-      run: cat .env
 
     - name: Build Docker image
       run: docker build -t fitbit-app .
@@ -46,7 +43,7 @@ jobs:
           echo "FITBIT_SLEEP is empty"
           exit 1
         fi
-        sed -i "s/^So far today, I have walked .* steps and slept for .*$/So far today, I have walked $FITBIT_STEPS steps and slept for $FITBIT_SLEEP/" README.md
+        sed -i "s/^So far today, I have walked .* steps and slept for .*$/So far today, I have walked ${FITBIT_STEPS} steps and slept for ${FITBIT_SLEEP}/" README.md
         echo "Steps: $FITBIT_STEPS"
         echo "Sleep: $FITBIT_SLEEP"
 
