@@ -1,12 +1,10 @@
-### Hi there 👋
+### G'day! 👋🏼
 
 <samp>
-G'day! 👋🏼
-
 I'm David A. Symons, otherwise known as David Dolph.
-
+<br>
 - 🚶🏼‍♂️ So far today, I have walked $FITBIT_STEPS steps and slept for $FITBIT_SLEEP
-
+    
 </samp>
 
 <!--
