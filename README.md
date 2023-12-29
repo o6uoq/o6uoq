@@ -1,10 +1,14 @@
 ### G'day! 👋🏼
 
+<samp>
 <p>
 I'm David A. Symons, otherwise known as David Dolph.
 </p>
 - 🚶🏼‍♂️ So far today, I have walked $FITBIT_STEPS steps and slept for $FITBIT_SLEEP
-    
+- Some other things about me
+- 1 2 3
+</samp>
+
 <!--
 **o6uoq/o6uoq** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
