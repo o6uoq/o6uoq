@@ -28,18 +28,11 @@ jobs:
     - name: Display .env file contents
       run: cat .env
 
-    - name: Echo Non-Sensitive Environment Variables
-      run: |
-        echo "FITBIT_AUTH_URI: $FITBIT_AUTH_URI"
-        echo "FITBIT_EXPIRES_AT: $FITBIT_EXPIRES_AT"
-        echo "FITBIT_REDIRECT_URI: $FITBIT_REDIRECT_URI"
-        echo "FITBIT_TOKEN_REQUEST_URI: $FITBIT_TOKEN_REQUEST_URI"
-
     - name: Build Docker image
       run: docker build -t fitbit-app .
 
     - name: Run Fitbit Tokens Command
-      run: docker run --env-file .env fitbit-app python fitbit.py fitbit-tokens
+      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitbit-app python fitbit.py fitbit-tokens
 
     - name: Run Fitbit Steps Command
       run: docker run --env-file .env fitbit-app python fitbit.py fitbit-steps
