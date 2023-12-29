@@ -36,9 +36,11 @@ jobs:
 
     - name: Update README
       run: |
-        FITBIT_STEPS=$(docker run fitbit-app python fitbit.py fitbit-steps)
-        FITBIT_SLEEP=$(docker run fitbit-app python fitbit.py fitbit-sleep)
+        FITBIT_STEPS=$(docker run fitbit-app python fitbit.py fitbit-steps | tr -d '\n')
+        FITBIT_SLEEP=$(docker run fitbit-app python fitbit.py fitbit-sleep | tr -d '\n')
         sed -i "s/^So far today, I have walked .* steps and slept for .*$/So far today, I have walked $FITBIT_STEPS steps and slept for $FITBIT_SLEEP/" README.md
+        echo "Steps: $FITBIT_STEPS"
+        echo "Sleep: $FITBIT_SLEEP"
 
     - name: Display README.md contents
       run: cat README.md
