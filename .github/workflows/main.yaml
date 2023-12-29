@@ -14,9 +14,9 @@ jobs:
       run: |
         cat << EOF > .env
         # Fitbit environment variables
-        FITBIT_AUTH_URI="$FITBIT_AUTH_URI"
-        FITBIT_EXPIRES_AT="$FITBIT_EXPIRES_AT"
-        FITBIT_REDIRECT_URI="$FITBIT_REDIRECT_URI"
+        FITBIT_AUTH_URI=${{ vars.FITBIT_AUTH_URI }}
+        FITBIT_EXPIRES_AT=${{ vars.FITBIT_EXPIRES_AT }}
+        FITBIT_REDIRECT_URI=${{ vars.FITBIT_REDIRECT_URI }}
         FITBIT_TOKEN_REQUEST_URI=${{ vars.FITBIT_TOKEN_REQUEST_URI }}
         # Fitbit secrets
         FITBIT_ACCESS_TOKEN=${{ secrets.FITBIT_ACCESS_TOKEN }}
