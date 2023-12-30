@@ -44,13 +44,21 @@ jobs:
     - name: Display README.md contents
       run: cat README.md
 
-    - name: Commit and push changes
-      run: |
-        git config --global user.name 'o6uoq'
-        git config --global user.email 'david@git.id.au'
-        git add README.md
-        git commit -am "Update README with Fitbit data" || echo "No changes to commit"
-        git push
+    # - name: Commit and push changes
+    #   run: |
+    #     git config --global user.name 'o6uoq'
+    #     git config --global user.email 'david@git.id.au'
+    #     git add README.md
+    #     git commit -am "Update README with Fitbit data" || echo "No changes to commit"
+    #     git push
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Commit and Push Changes
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: Update README with Fitbit data
+        branch: main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
