@@ -1,17 +1,18 @@
-### G'day! 👋🏼
+### G'day world! 👋🏼
 
-<samp>I'm David A. Symons, otherwise known as David Dolph.</samp>
+👋🏼 G'day! I'm David Dolph (David A. Symons).
 
-<samp>
-💻 I do $X <br>
-🚶🏼‍♂️ So far today, I have walked $FITBIT_STEPS steps and slept for $FITBIT_SLEEP <br>
-🇦🇺 Made in Australia <br>
-</samp>
+I have a sincere passion for people, problem solving and technology.
+
+I have worked across a multitude of industries, from global conglomerates ([Expedia](https://expediagroup.com/), [Toyota](https://www.toyota.com/), [Riot Games](https://www.riotgames.com/)) to early-stage, startup and growth companies ([Open Banking](https://www.openbanking.org.uk/), [Banked](https://banked.com/), [Dream11](https://www.dream11.com/)).
+
+I love helping companies (including seed, pre-seed, Series A-C) start, build and scale 🚀
 
 <p>
 
 - <samp> 💻 I do $X </samp><br>
-- <samp> 🚶🏼‍♂️ So far today, I have walked $FITBIT_STEPS steps and slept for $FITBIT_SLEEP </samp><br>
+- <samp> 🚶🏼‍♂️ Today I have walked $FITBIT_STEPS steps and slept for $FITBIT_SLEEP </samp><br>
+- <samp> ⚡ Fun fact: I was the [Queensland](https://en.wikipedia.org/wiki/Queensland) [Doom II](https://en.wikipedia.org/wiki/Doom_II) champion in the 1990's
 - <samp> 🇦🇺 Made in Australia </samp><br> 
 
 
