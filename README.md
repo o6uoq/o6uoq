@@ -13,10 +13,10 @@ I love helping companies (especially seed, pre-seed, Series A-C) start, build an
 <<<<<<< HEAD
 - <samp> 💻 I love working with Developers, Containers, Cloud and Kaizen 💹 </samp><br>
 - <samp> 💬 Ask me about DevOps, CI/CD, Shifting ⬅️, GitOps, Containers, Kubernetes and Cloud (AWS+GCP)
-- <samp> 🚶🏼‍♂️ Today I have walked **8336** steps and slept for **5h 27m** </samp><br>
+- <samp> 🚶🏼‍♂️ Today I have walked **5614** steps and slept for **8h 36m** </samp><br>
 =======
 - <samp> 💻 I do `$X` </samp><br>
-- <samp> 🚶🏼‍♂️ Today I have walked **5528** steps and slept for **8h 36m** </samp><br>
+- <samp> 🚶🏼‍♂️ Today I have walked **5614** steps and slept for **8h 36m** </samp><br>
 >>>>>>> c1db430c8f0ed5899907939ccdeb0b84eb3a0469
 - <samp> 🏋🏼‍♂️ Coming soon: My last workout was `$STRAVA_WORKOUT`
 - <samp> ⚡ Fun fact: I was the [Queensland](https://en.wikipedia.org/wiki/Queensland) [Doom II](https://en.wikipedia.org/wiki/Doom_II) champion in the 1990's
