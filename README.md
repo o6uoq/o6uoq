@@ -11,7 +11,7 @@ I love helping companies (including seed, pre-seed, Series A-C) start, build and
 <p>
 
 - <samp> 💻 I do `$X` </samp><br>
-- <samp> 🚶🏼‍♂️ Today I have walked 8336 steps and slept for 5h 27m </samp><br>
+- <samp> 🚶🏼‍♂️ Today I have walked **8336** steps and slept for **5h 27m** </samp><br>
 - <samp> 🏋🏼‍♂️ Coming soon: My last workout was `$STRAVA_WORKOUT`
 - <samp> ⚡ Fun fact: I was the [Queensland](https://en.wikipedia.org/wiki/Queensland) [Doom II](https://en.wikipedia.org/wiki/Doom_II) champion in the 1990's
 - <samp> 🇦🇺 Made in Australia </samp><br> 
