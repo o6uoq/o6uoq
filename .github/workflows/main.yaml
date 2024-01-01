@@ -30,8 +30,8 @@ jobs:
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
         EOF
 
-    - name: Get latest workflow run ID
-      id: get-latest-run-id
+    - name: Get second-to-last workflow run ID (because latest is current run)
+      id: get-second-last-run-id
       uses: actions/github-script@v7
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -41,9 +41,12 @@ jobs:
             repo: context.repo.repo,
             workflow_id: 'main.yaml',
           });
-          const latestRunId = data.workflow_runs[0].id;
-          return latestRunId;
-
+          if (data.workflow_runs.length < 2) {
+            throw new Error('Not enough workflow runs to get the second-to-last run ID');
+          }
+          const secondLastRunId = data.workflow_runs[1].id; // Get the second run in the list
+          return secondLastRunId;
+  
     - name: Download fitbit_tokens.json artifact from latest run
       uses: actions/download-artifact@v4
       with:
