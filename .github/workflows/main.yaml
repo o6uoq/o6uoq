@@ -30,11 +30,25 @@ jobs:
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
         EOF
 
-    - name: Download latest fitbit_tokens.json artifact
+    - name: Get latest workflow run ID
+      id: get-latest-run-id
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const { data } = await github.rest.actions.listWorkflowRuns({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'main.yaml',
+          });
+          const latestRunId = data.workflow_runs[0].id;
+          return latestRunId;
+
+    - name: Download fitbit_tokens.json artifact from latest run
       uses: actions/download-artifact@v4
       with:
         name: fitbit-tokens
-        path: fitbit_tokens.json
+        run-id: ${{ steps.get-latest-run-id.outputs.result }}
 
     - name: Update .env file with latest token data
       run: |
