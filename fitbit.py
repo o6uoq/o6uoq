@@ -115,7 +115,10 @@ def fitbit_auth():
         sys.exit(1)
 
 def fitbit_tokens():
-    """Store the current token data in a file."""
+    """Refresh the token if expired and store the current token data in a file."""
+    if is_token_expired():
+        refresh_token()  # Refreshes the token and updates global variables
+
     token_data = {
         'FITBIT_ACCESS_TOKEN': FITBIT_ACCESS_TOKEN,
         'FITBIT_REFRESH_TOKEN': FITBIT_REFRESH_TOKEN,

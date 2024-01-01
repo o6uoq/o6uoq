@@ -32,7 +32,7 @@ jobs:
 
     - name: Get most recent successful run
       id: get-successful-run
-      uses: actions/github-script@v7
+      uses: actions/github-script@v7  
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
@@ -86,8 +86,8 @@ jobs:
 
     - name: Update README
       run: |
-        FITBIT_STEPS=$(docker run fitbit-app python fitbit.py fitbit-steps | tr -d '\n')
-        FITBIT_SLEEP=$(docker run fitbit-app python fitbit.py fitbit-sleep | tr -d '\n')
+        FITBIT_STEPS=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitbit-app python fitbit.py fitbit-steps | tr -d '\n')
+        FITBIT_SLEEP=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitbit-app python fitbit.py fitbit-sleep | tr -d '\n')
         sed -i "s/^- <samp> 🚶🏼‍♂️ Today I have walked .* steps and slept for .* <\/samp><br>$/- <samp> 🚶🏼‍♂️ Today I have walked **$FITBIT_STEPS** steps and slept for **$FITBIT_SLEEP** <\/samp><br>/" README.md
         echo "Steps: $FITBIT_STEPS"
         echo "Sleep: $FITBIT_SLEEP"
