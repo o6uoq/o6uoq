@@ -30,9 +30,9 @@ jobs:
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
         EOF
 
-    - name: Get second-to-last workflow run ID (because latest is current run)
-      id: get-second-last-run-id
-      uses: actions/github-script@v7
+    - name: Get most recent successful run
+      id: get-successful-run
+      uses: actions/github-script@v6
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
@@ -40,18 +40,29 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             workflow_id: 'main.yaml',
+            status: 'completed',
           });
-          if (data.workflow_runs.length < 2) {
-            throw new Error('Not enough workflow runs to get the second-to-last run ID');
+
+          const successfulRun = data.workflow_runs.find(run => run.conclusion === 'success');
+
+          if (!successfulRun) {
+            return { runId: null, found: false };
           }
-          const secondLastRunId = data.workflow_runs[1].id; // Get the second run in the list
-          return secondLastRunId;
-  
-    - name: Download fitbit_tokens.json artifact from latest run
+
+          return { runId: successfulRun.id, found: true };
+
+    - name: Download Fitbit Tokens from GitHub Artifacts
       uses: actions/download-artifact@v4
       with:
         name: fitbit-tokens
-        run-id: ${{ steps.get-latest-run-id.outputs.result }}
+        run-id: ${{ steps.get-successful-run.outputs.runId }}
+      if: steps.get-successful-run.outputs.found == 'true'
+      continue-on-error: true
+
+    - name: Check download status and notify if failed
+      if: failure() && steps.get-successful-run.outputs.found == 'true' # This step runs if the download step failed
+      run: |
+        echo "Artifact download failed."
 
     - name: Update .env file with latest token data
       run: |
@@ -90,7 +101,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload Fitbit Tokens output to GitHub Artifacts
+    - name: Upload Fitbit Tokens to GitHub Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: fitbit-tokens
