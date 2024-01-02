@@ -4,7 +4,7 @@
 
 Driven by a sincere passion for people, problem-solving and technology, my work spans a multitude of industries: from global conglomerates ([Expedia](https://expediagroup.com/), [Toyota](https://www.toyota.com/), [Riot Games](https://www.riotgames.com/)) to early-stage, start-up and scale-up companies ([Open Banking](https://www.openbanking.org.uk/), [Banked](https://banked.com/), [Dream11](https://www.dream11.com/)).
 
-🛗 Pitch: I help you self-actualise your software and technology objectives by building culture, creating kaizen (continuous improvement) via happy teams that deliver software fast that is safe, secure and in the cloud.
+🛗 Pitch: I help you self-actualise your software and technology objectives by building culture, creating kaizen (continuous improvement) via happy teams that accelerate software delivery that is safe, secure and in the cloud.
 
 <p>
 
