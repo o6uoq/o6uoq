@@ -2,15 +2,14 @@
 
 👋🏼 I'm David Dolph (David A. Symons).
 
-I have a sincere passion for people, problem solving and technology.
+Driven by a sincere passion for people, problem-solving and technology, my work spans a multitude of industries: from global conglomerates ([Expedia](https://expediagroup.com/), [Toyota](https://www.toyota.com/), [Riot Games](https://www.riotgames.com/)) to early-stage, start-up and scale-up companies ([Open Banking](https://www.openbanking.org.uk/), [Banked](https://banked.com/), [Dream11](https://www.dream11.com/)).
 
-I have worked across a multitude of industries, from global conglomerates ([Expedia](https://expediagroup.com/), [Toyota](https://www.toyota.com/), [Riot Games](https://www.riotgames.com/)) to early-stage, start-up and scale-up companies ([Open Banking](https://www.openbanking.org.uk/), [Banked](https://banked.com/), [Dream11](https://www.dream11.com/)).
-
-I love helping companies (especially seed, pre-seed, Series A-C) start, build and scale 🚀
+🛗 Pitch: I help you self-actualise your software and technology objectives by building culture, creating kaizen (continuous improvement) via happy teams that deliver software fast that is safe, secure and in the cloud.
 
 <p>
 
-- <samp> 💻 I love working with Developers, Containers, Cloud and Kaizen 💹 </samp><br>
+- <samp> 🚀 I love helping companies (especially seed, pre-seed, Series A-C) start, build and scale
+- <samp> 💻 ..and working with Developers/Engineers, Containers, Cloud and Kaizen 💹 </samp><br>
 - <samp> 💬 Ask me about DevOps, CI/CD, Shifting ⬅️, GitOps, Containers, Kubernetes and Cloud (AWS+GCP)
 - <samp> 🚶🏼‍♂️ Today I have walked **880** steps and slept for **7h 18m** </samp><br>
 - <samp> 🏋🏼‍♂️ Coming soon: My last workout was `$STRAVA_WORKOUT`
