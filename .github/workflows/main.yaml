@@ -67,9 +67,9 @@ jobs:
     - name: Update .env file with latest token data
       run: |
         if [ -f fitbit_tokens.json ]; then
-          ACCESS_TOKEN=$(jq -r '.FITBIT_ACCESS_TOKEN' fitbit_tokens.json)
-          REFRESH_TOKEN=$(jq -r '.FITBIT_REFRESH_TOKEN' fitbit_tokens.json)
-          EXPIRES_AT=$(jq -r '.FITBIT_EXPIRES_AT' fitbit_tokens.json)
+          FITBIT_ACCESS_TOKEN=$(jq -r '.FITBIT_ACCESS_TOKEN' fitbit_tokens.json)
+          FITBIT_REFRESH_TOKEN=$(jq -r '.FITBIT_REFRESH_TOKEN' fitbit_tokens.json)
+          FITBIT_EXPIRES_AT=$(jq -r '.FITBIT_EXPIRES_AT' fitbit_tokens.json)
 
           echo "FITBIT_ACCESS_TOKEN=$FITBIT_ACCESS_TOKEN" >> .env
           echo "FITBIT_REFRESH_TOKEN=$FITBIT_REFRESH_TOKEN" >> .env
