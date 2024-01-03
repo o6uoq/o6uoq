@@ -114,11 +114,16 @@ def fitbit_auth():
         print(response)
         sys.exit(1)
 
-def fitbit_tokens():
-    """Refresh the token if expired and store the current token data in a file."""
-    if is_token_expired():
-        refresh_token()  # Refreshes the token and updates global variables
+def update_token_data():
+    """Update the environment variables and write the current token data to a JSON file."""
+    global FITBIT_ACCESS_TOKEN, FITBIT_REFRESH_TOKEN, FITBIT_EXPIRES_AT
 
+    # Update environment variables
+    os.environ['FITBIT_ACCESS_TOKEN'] = FITBIT_ACCESS_TOKEN
+    os.environ['FITBIT_REFRESH_TOKEN'] = FITBIT_REFRESH_TOKEN
+    os.environ['FITBIT_EXPIRES_AT'] = FITBIT_EXPIRES_AT
+
+    # Write token data to a JSON file
     token_data = {
         'FITBIT_ACCESS_TOKEN': FITBIT_ACCESS_TOKEN,
         'FITBIT_REFRESH_TOKEN': FITBIT_REFRESH_TOKEN,
@@ -128,6 +133,11 @@ def fitbit_tokens():
     with open('fitbit_tokens.json', 'w') as file:
         json.dump(token_data, file, indent=4)
         file.write('\n')  # Add a newline at the end of the file
+
+def fitbit_tokens():
+    """Check if the token is expired and refresh it if necessary."""
+    if is_token_expired():
+        refresh_token()
 
 def refresh_token():
     """Refresh the access token using the refresh token."""
@@ -143,18 +153,12 @@ def refresh_token():
 
     if response.status_code == 200:
         response_json = response.json()
-        expires_in = response_json['expires_in']  # Get expires_in value from response
         FITBIT_ACCESS_TOKEN = response_json['access_token']
         FITBIT_REFRESH_TOKEN = response_json['refresh_token']
         FITBIT_EXPIRES_AT = str(int(time.time()) + response_json['expires_in'])
 
-        # Update the environment variables
-        os.environ['FITBIT_ACCESS_TOKEN'] = FITBIT_ACCESS_TOKEN
-        os.environ['FITBIT_REFRESH_TOKEN'] = FITBIT_REFRESH_TOKEN
-        os.environ['FITBIT_EXPIRES_AT'] = FITBIT_EXPIRES_AT
-
-        # Update the token data in the JSON file
-        fitbit_tokens()
+        # Update the token data
+        update_token_data()
     else:
         print("\nFailed to refresh token. Response from Fitbit API:\n")
         print(response.text)
