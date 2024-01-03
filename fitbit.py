@@ -135,9 +135,12 @@ def update_token_data():
         file.write('\n')  # Add a newline at the end of the file
 
 def fitbit_tokens():
-    """Check if the token is expired and refresh it if necessary."""
+    """Check if the token is expired and refresh it if necessary. Then write the token data to a file."""
     if is_token_expired():
         refresh_token()
+
+    # Always write the current token data to the JSON file
+    update_token_data()
 
 def refresh_token():
     """Refresh the access token using the refresh token."""
