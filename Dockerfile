@@ -11,5 +11,5 @@ COPY . /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Run fitbit.py when the container launches
-CMD ["python", "fitbit.py"]
+# Run Python when the container launches
+CMD ["python"]
