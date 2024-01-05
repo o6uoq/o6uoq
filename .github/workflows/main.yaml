@@ -59,6 +59,11 @@ jobs:
       if: steps.get-successful-run.outputs.found == 'true'
       continue-on-error: true
 
+    - name: Echo Workflow Run Information
+      run: |
+        echo "Current Workflow Run ID: $GITHUB_RUN_ID"
+        echo "Attempting to download artifact from Run ID: ${{ steps.get-successful-run.outputs.runId }}"
+
     - name: Check download status and notify if failed
       if: failure() && steps.get-successful-run.outputs.found == 'true' # This step runs if the download step failed
       run: |
