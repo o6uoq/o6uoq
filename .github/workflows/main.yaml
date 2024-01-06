@@ -58,6 +58,7 @@ jobs:
       with:
         name: fitbit-tokens
         run-id: ${{ steps.get-successful-run.outputs.runId }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
       if: steps.get-successful-run.outputs.found == 'true'
       continue-on-error: true
 
