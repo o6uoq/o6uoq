@@ -1,4 +1,4 @@
-name: Fitbit Workflow
+name: GitHub Profile README Updater Workflow
 
 on:
   push:
@@ -18,16 +18,26 @@ jobs:
     - name: Create environment file
       run: |
         cat << EOF > .env
-        # Fitbit environment variables
+        ### Fitbit environment variables
         FITBIT_AUTH_URI=${{ vars.FITBIT_AUTH_URI }}
         FITBIT_EXPIRES_AT=${{ vars.FITBIT_EXPIRES_AT }}
         FITBIT_REDIRECT_URI=${{ vars.FITBIT_REDIRECT_URI }}
         FITBIT_TOKEN_REQUEST_URI=${{ vars.FITBIT_TOKEN_REQUEST_URI }}
-        # Fitbit secrets
+        ### Fitbit secrets
         FITBIT_ACCESS_TOKEN=${{ secrets.FITBIT_ACCESS_TOKEN }}
         FITBIT_CLIENT_ID=${{ secrets.FITBIT_CLIENT_ID }}
         FITBIT_CLIENT_SECRET=${{ secrets.FITBIT_CLIENT_SECRET }}
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
+        ### Strava environment variables
+        STRAVA_AUTH_URI=${{ vars.STRAVA_AUTH_URI }}
+        STRAVA_EXPIRES_AT={{ vars.STRAVA_EXPIRES_AT }}
+        STRAVA_REDIRECT_URI={{ vars.STRAVA_REDIRECT_URI }}
+        STRAVA_TOKEN_REQUEST_URI=${{ vars.STRAVA_TOKEN_REQUEST_URI }}
+        ### Strava secrets
+        STRAVA_ACCESS_TOKEN={{ secrets.STRAVA_ACCESS_TOKEN }}
+        STRAVA_CLIENT_ID={{ secrets.STRAVA_CLIENT_ID }}
+        STRAVA_CLIENT_SECRET={{ secrets.STRAVA_CLIENT_SECRET }}
+        STRAVA_REFRESH_TOKEN={{ secrets.STRAVA_REFRESH_TOKEN }}
         EOF
 
     - name: Get most recent successful run
@@ -62,17 +72,26 @@ jobs:
       if: steps.get-successful-run.outputs.found == 'true'
       continue-on-error: true
 
+    - name: Download Strava Tokens from GitHub Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: strava-tokens
+        run-id: ${{ steps.get-successful-run.outputs.runId }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+      if: steps.get-successful-run.outputs.found == 'true'
+      continue-on-error: true
+
     - name: Echo Workflow Run Information
       run: |
-        echo "Current Workflow Run ID: $GITHUB_RUN_ID"
-        echo "Attempting to download artifact from Run ID: ${{ steps.get-successful-run.outputs.runId }}"
+        echo "[INFO] Current Workflow Run ID: $GITHUB_RUN_ID"
+        echo "[INFO] Attempting to download artifact from Run ID: ${{ steps.get-successful-run.outputs.runId }}"
 
     - name: Check download status and notify if failed
       if: failure() && steps.get-successful-run.outputs.found == 'true' # This step runs if the download step failed
       run: |
-        echo "Artifact download failed."
+        echo "[ERROR] Artifact download failed."
 
-    - name: Update .env file with latest token data
+    - name: Update .env file with latest tokens data
       run: |
         if [ -f fitbit_tokens.json ]; then
           FITBIT_ACCESS_TOKEN=$(jq -r '.FITBIT_ACCESS_TOKEN' fitbit_tokens.json)
@@ -83,22 +102,41 @@ jobs:
           echo "FITBIT_REFRESH_TOKEN=$FITBIT_REFRESH_TOKEN" >> .env
           echo "FITBIT_EXPIRES_AT=$FITBIT_EXPIRES_AT" >> .env
         else
-          echo "fitbit_tokens.json not found, skipping .env update."
+          echo "[WARN] fitbit_tokens.json not found, skipping .env update."
+        fi
+
+        if [ -f strava_tokens.json ]; then
+          STRAVA_ACCESS_TOKEN=$(jq -r '.STRAVA_ACCESS_TOKEN' strava_tokens.json)
+          STRAVA_REFRESH_TOKEN=$(jq -r '.STRAVA_REFRESH_TOKEN' strava_tokens.json)
+          STRAVA_EXPIRES_AT=$(jq -r '.STRAVA_EXPIRES_AT' strava_tokens.json)
+
+          echo "STRAVA_ACCESS_TOKEN=$STRAVA_ACCESS_TOKEN" >> .env
+          echo "STRAVA_REFRESH_TOKEN=$STRAVA_REFRESH_TOKEN" >> .env
+          echo "STRAVA_EXPIRES_AT=$STRAVA_EXPIRES_AT" >> .env
+        else
+          echo "[WARN] strava_tokens.json not found, skipping .env update."
         fi
 
     - name: Build Docker image
-      run: docker build -t fitbit-app .
+      run: docker build -t ghpru .
 
-    - name: Run Fitbit Tokens command
-      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitbit-app python fitbit.py fitbit-tokens
+    - name: Run GitHub Profile Tokens commands
+      run: |
+        docker run --env-file .env -v ${{ github.workspace }}:/app ghpru python fitbit.py fitbit-tokens
+        docker run --env-file .env -v ${{ github.workspace }}:/app ghpru python strava.py strava-tokens
 
     - name: Update README
       run: |
-        FITBIT_STEPS=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitbit-app python fitbit.py fitbit-steps | tr -d '\n')
-        FITBIT_SLEEP=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitbit-app python fitbit.py fitbit-sleep | tr -d '\n')
+        FITBIT_STEPS=$(docker run --env-file .env -v ${{ github.workspace }}:/app ghpru python fitbit.py fitbit-steps | tr -d '\n')
+        FITBIT_SLEEP=$(docker run --env-file .env -v ${{ github.workspace }}:/app ghpru python fitbit.py fitbit-sleep | tr -d '\n')
+        STRAVA_WORKOUT=$(docker run --env-file .env -v ${{ github.workspace }}:/app ghpru python strava.py strava-latest-workout | awk 'NR==1')
+        STRAVA_WORKOUT_TIME=$(docker run --env-file .env -v ${{ github.workspace }}:/app ghpru python strava.py strava-latest-workout | awk 'NR==2')
         sed -i "s/^- <samp> 🚶🏼‍♂️ Today I have walked .* steps and slept for .* <\/samp><br>$/- <samp> 🚶🏼‍♂️ Today I have walked **$FITBIT_STEPS** steps and slept for **$FITBIT_SLEEP** <\/samp><br>/" README.md
-        echo "Steps: $FITBIT_STEPS"
-        echo "Sleep: $FITBIT_SLEEP"
+        sed -i "s/^- <samp> 🏋🏼‍♂️ My last workout was \*\*.*\*\* for \*\*.*\*\* <\/samp><br>$/- <samp> 🏋🏼‍♂️ My last workout was **$STRAVA_WORKOUT** for **$STRAVA_WORKOUT_TIME** <\/samp><br>/" README.md
+        echo "[INFO] Fitbit Steps: $FITBIT_STEPS"
+        echo "[INFO] Fitbit Sleep: $FITBIT_SLEEP"
+        echo "[INFO] Strava Workout: $STRAVA_WORKOUT"
+        echo "[INFO] Strava Workout Time: $STRAVA_WORKOUT_TIME"
 
     - name: Display README.md contents
       run: cat README.md
@@ -108,7 +146,7 @@ jobs:
         git config --global user.name 'o6uoq'
         git config --global user.email 'david@git.id.au'
         git add README.md
-        git commit -am "[gh-action] Update README with Fitbit data" || echo "No changes to commit"
+        git commit -am "[gh-action] Update README with Fitbit data" || echo "[INFO] No changes to commit"
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -118,3 +156,9 @@ jobs:
       with:
         name: fitbit-tokens
         path: fitbit_tokens.json
+
+    - name: Upload Strava Tokens to GitHub Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: strava-tokens
+        path: strava_tokens.json
