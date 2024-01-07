@@ -30,14 +30,14 @@ jobs:
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
         ### Strava environment variables
         STRAVA_AUTH_URI=${{ vars.STRAVA_AUTH_URI }}
-        STRAVA_EXPIRES_AT={{ vars.STRAVA_EXPIRES_AT }}
-        STRAVA_REDIRECT_URI={{ vars.STRAVA_REDIRECT_URI }}
+        STRAVA_EXPIRES_AT=${{ vars.STRAVA_EXPIRES_AT }}
+        STRAVA_REDIRECT_URI=${{ vars.STRAVA_REDIRECT_URI }}
         STRAVA_TOKEN_REQUEST_URI=${{ vars.STRAVA_TOKEN_REQUEST_URI }}
         ### Strava secrets
-        STRAVA_ACCESS_TOKEN={{ secrets.STRAVA_ACCESS_TOKEN }}
-        STRAVA_CLIENT_ID={{ secrets.STRAVA_CLIENT_ID }}
-        STRAVA_CLIENT_SECRET={{ secrets.STRAVA_CLIENT_SECRET }}
-        STRAVA_REFRESH_TOKEN={{ secrets.STRAVA_REFRESH_TOKEN }}
+        STRAVA_ACCESS_TOKEN=${{ secrets.STRAVA_ACCESS_TOKEN }}
+        STRAVA_CLIENT_ID=${{ secrets.STRAVA_CLIENT_ID }}
+        STRAVA_CLIENT_SECRET=${{ secrets.STRAVA_CLIENT_SECRET }}
+        STRAVA_REFRESH_TOKEN=${{ secrets.STRAVA_REFRESH_TOKEN }}
         EOF
 
     - name: Get most recent successful run
