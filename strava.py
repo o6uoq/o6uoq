@@ -181,11 +181,11 @@ def is_token_expired():
     return current_time >= expires_in
 
 def format_elapsed_time(seconds):
-    """Formats elapsed time in seconds to 'XhYm' format."""
-    hours, minutes = divmod(seconds, 3600)
-    minutes, _ = divmod(minutes, 60)
+    """Formats elapsed time in seconds to 'Xh Ym' format."""
+    hours, remainder = divmod(seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
     if hours > 0:
-        return f"{hours}h{minutes}m"
+        return f"{hours}h {minutes:02}m"
     else:
         return f"{minutes}m"
 
