@@ -8,8 +8,8 @@ Driven by a sincere passion for people, problem-solving and technology, my work 
 
 <p>
 
-- <samp> 🚀 I love helping companies (especially seed, pre-seed, Series A-C) start, build and scale
-- <samp> 💻 ..and working with Developers/Engineers, Containers, Cloud and Kaizen 💹 </samp><br>
+- <samp> 🚀 I love helping companies (pre-seed, seed, Series A-C) start, build and scale
+- <samp> 💻 ..and working with Developers, Engineers, Containers, Cloud and Kaizen 💹 </samp><br>
 - <samp> 💬 Ask me about DevOps, CI/CD, Shifting ⬅️, GitOps, Containers, Kubernetes and Cloud (AWS+GCP)
 - <samp> 🚶🏼‍♂️ Today I have walked **41** steps and slept for **6h 37m** </samp><br>
 - <samp> 🏋🏼‍♂️ My last workout was **Afternoon Ride** for **26m** </samp><br>
