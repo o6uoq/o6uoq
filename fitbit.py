@@ -79,7 +79,10 @@ def update_env_file(new_values):
 def fitbit_auth():
     """Handle the manual authentication flow."""
     print("\nPlease go to the following URL to authorize the application and get the code:")
+    
+    # Ensure there are no quotes around client_id and redirect_uri
     auth_url = f"{FITBIT_AUTH_URI}?response_type=code&client_id={FITBIT_CLIENT_ID}&redirect_uri={FITBIT_REDIRECT_URI}&scope=activity%20sleep"
+    
     print(auth_url)
     auth_code = input("\nEnter the authorization code: ")
 
@@ -90,7 +93,6 @@ def fitbit_auth():
         FITBIT_TOKEN_REQUEST_URI,
         headers={"Authorization": f"Basic {auth_b64}", "Content-Type": "application/x-www-form-urlencoded"},
         data={
-            "clientId": FITBIT_CLIENT_ID,
             "grant_type": "authorization_code",
             "redirect_uri": FITBIT_REDIRECT_URI,
             "code": auth_code
