@@ -12,6 +12,6 @@ Driven by a sincere passion for people, problem-solving and technology, my work 
 - <samp> 💻 ..and working with Developers, Engineers, Containers, Cloud and Kaizen 💹 </samp><br>
 - <samp> 💬 Ask me about DevOps, CI/CD, Shifting ⬅️, GitOps, Containers, Kubernetes and Cloud (AWS+GCP)
 - <samp> 🚶🏼‍♂️ Today I have walked **5006** steps and slept for **6h 48m** </samp><br>
-- <samp> 🏋🏼‍♂️ My last workout was **Morning Walk** for **1h 07m** </samp><br>
+- <samp> 🏋🏼‍♂️ My last workout was **Swimming** for **30m** </samp><br>
 - <samp> ⚡ Fun fact: I was the [Queensland](https://en.wikipedia.org/wiki/Queensland) [Doom II](https://en.wikipedia.org/wiki/Doom_II) champion in the 1990's
 - <samp> 🇦🇺 Made in Australia </samp><br> 
