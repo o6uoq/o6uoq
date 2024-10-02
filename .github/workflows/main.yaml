@@ -146,7 +146,7 @@ jobs:
         git config --global user.name 'o6uoq'
         git config --global user.email 'david@git.id.au'
         git add README.md
-        git commit -am "ci: updating README with health data" || echo "ci: no changes to commit"
+        git commit -am "🔄 ci: updating README with health data" || echo "🔄 ci: no changes to commit"
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
