@@ -180,7 +180,9 @@ def fitbit_steps():
     if is_token_expired():
         refresh_token()
     try:
-        endpoint = "https://api.fitbit.com/1/user/-/activities/date/today.json"
+        # Get the current date in UTC and format it as yyyy-MM-dd
+        current_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        endpoint = f"https://api.fitbit.com/1/user/-/activities/date/{current_date}.json"
         response = requests.get(endpoint, headers={"Authorization": f"Bearer {FITBIT_ACCESS_TOKEN}"})
         response.raise_for_status()
         data = response.json()
