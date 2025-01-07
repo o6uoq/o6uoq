@@ -72,14 +72,14 @@ jobs:
     #   if: steps.get-successful-run.outputs.found == 'true'
     #   continue-on-error: true
     
-    # - name: Download Strava Tokens from GitHub Artifacts
-    #   uses: actions/download-artifact@v4
-    #   with:
-    #     name: strava-tokens
-    #     run-id: ${{ steps.get-successful-run.outputs.runId }}
-    #     github-token: ${{ secrets.GITHUB_TOKEN }}
-    #   if: steps.get-successful-run.outputs.found == 'true'
-    #   continue-on-error: true
+    - name: Download Strava Tokens from GitHub Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: strava-tokens
+        run-id: ${{ steps.get-successful-run.outputs.runId }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+      if: steps.get-successful-run.outputs.found == 'true'
+      continue-on-error: true
 
     - name: Echo Workflow Run Information
       run: |
