@@ -12,6 +12,6 @@ Driven by a sincere passion for people, problem-solving and technology, my work 
 - <samp> 💻 ..and working with Developers, Engineers, Containers, Cloud and Kaizen 💹 </samp><br>
 - <samp> 💬 Ask me about DevOps, CI/CD, Shifting ⬅️, GitOps, Containers, Kubernetes and Cloud (AWS+GCP)
 - <samp> 🚶🏼‍♂️ Today I have walked **37** steps and slept for **Error fetching sleep data: 400 Client Error: Bad Request for url: https://api.fitbit.com/1.2/user/-/sleep/date/today.json** </samp><br>
-- <samp> 🏋🏼‍♂️ My last workout was **Museum of London - Dalston** for **11m** </samp><br>
+- <samp> 🏋🏼‍♂️ My last workout was **Sunday Session** for **1h 24m** </samp><br>
 - <samp> ⚡ Fun fact: I was the [Queensland](https://en.wikipedia.org/wiki/Queensland) [Doom II](https://en.wikipedia.org/wiki/Doom_II) champion in the 1990's
 - <samp> 🇦🇺 Made in Australia </samp><br> 
