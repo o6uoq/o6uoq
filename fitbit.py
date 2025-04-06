@@ -4,7 +4,7 @@ import os
 import requests
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if they are not already set
@@ -195,16 +195,24 @@ def fitbit_sleep():
     if is_token_expired():
         refresh_token()
     try:
-        endpoint = "https://api.fitbit.com/1.2/user/-/sleep/date/today.json"
-        response = requests.get(endpoint, headers={"Authorization": f"Bearer {FITBIT_ACCESS_TOKEN}"})
+        # Use safe date import to avoid AttributeError
+        today = date.today().strftime("%Y-%m-%d")
+        endpoint = f"https://api.fitbit.com/1.2/user/-/sleep/date/{today}.json"
+
+        headers = {
+            "Authorization": f"Bearer {FITBIT_ACCESS_TOKEN}"
+        }
+
+        response = requests.get(endpoint, headers=headers)
         response.raise_for_status()
         data = response.json()
-        minutes = data['summary']['totalMinutesAsleep']
-        hours, minutes_left = divmod(minutes, 60)
-        print(f"\n{hours}h {minutes_left}m")
+
+        total_minutes = data['summary'].get('totalMinutesAsleep', 0)
+        hours, minutes_left = divmod(total_minutes, 60)
+        print(f"{hours}h {minutes_left}m")
     except requests.exceptions.RequestException as e:
-        print(f"\nError fetching sleep data: {e}")
-        
+        print(f"Error fetching sleep data: {e}")
+
 def main():
     if len(sys.argv) > 1:
         command = sys.argv[1]
