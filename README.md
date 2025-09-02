@@ -14,4 +14,4 @@ Driven by a sincere passion for people, problem-solving and technology, my work 
 - <samp> 🚶🏼‍♂️ Today I have walked **4438** steps and slept for **7h 22m** </samp><br>
 - <samp> 🏋🏼‍♂️ My last workout was **Saturday Lift** for **1h 26m** </samp><br>
 - <samp> ⚡ Fun fact: I was the [Queensland](https://en.wikipedia.org/wiki/Queensland) [Doom II](https://en.wikipedia.org/wiki/Doom_II) champion in the 1990's
-- <samp> 🇦🇺 Made in Australia </samp><br> 
+- <samp> 🇦🇺 Made in Australia </samp><br>
