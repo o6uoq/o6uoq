@@ -131,8 +131,10 @@ class OAuthManager:
 
     def _update_env_file(self, new_values: dict) -> None:
         """Update .env file with new values."""
+        env_path = os.path.join(os.getcwd(), '.env')
+
         try:
-            with open('.env', 'r') as f:
+            with open(env_path, 'r') as f:
                 lines = f.readlines()
         except FileNotFoundError:
             lines = []
@@ -155,8 +157,13 @@ class OAuthManager:
             if key not in found_keys:
                 updated_lines.append(f"{key}={value}\n")
 
-        with open('.env', 'w') as f:
+        with open(env_path, 'w') as f:
             f.writelines(updated_lines)
+
+        print(f"✅ Updated {env_path} with new tokens")
+
+        # Reload environment variables from the updated .env file
+        load_dotenv(override=True)
 
     def refresh_token(self) -> None:
         """Refresh the access token."""
