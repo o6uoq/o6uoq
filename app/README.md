@@ -69,8 +69,15 @@ python -m app.strava strava-tokens-refresh
 
 ```bash
 docker build -t fitness-cli .
-docker run --env-file .env fitness-cli python -m app.fitbit fitbit-steps
+
+# Interactive shell (recommended for auth/token operations)
+docker run -it --env-file .env -v $(pwd):/app fitness-cli /bin/sh
+
+# Direct command execution
+docker run --env-file .env -v $(pwd):/app fitness-cli python -m app.fitbit fitbit-steps
 ```
+
+**Note:** The `-v $(pwd):/app` volume mount is required when running commands that update files (like authentication), otherwise changes won't persist to your host machine.
 
 ## Files
 
