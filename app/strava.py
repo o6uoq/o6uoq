@@ -37,8 +37,12 @@ def main() -> None:
                 print("🔄 Tokens refreshed and saved!")
             elif command == 'strava-tokens-refresh':
                 print("🔄 Refreshing Strava tokens...")
-                client.oauth.refresh_token()
-                print("✅ Strava tokens refreshed!")
+                try:
+                    client.oauth.refresh_token()
+                    print("✅ Strava tokens refreshed!")
+                except SystemExit:
+                    print("❌ Refresh token invalid. Please re-authenticate:")
+                    print("Run: python -m app.strava strava-auth")
 
         else:
             print("\nInvalid command. Use 'strava-auth', 'strava-latest-workout', 'strava-tokens', or 'strava-tokens-refresh'.")
