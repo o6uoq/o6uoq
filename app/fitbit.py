@@ -39,8 +39,12 @@ def main() -> None:
                 print("🔄 Tokens refreshed and saved!")
             elif command == 'fitbit-tokens-refresh':
                 print("🔄 Refreshing Fitbit tokens...")
-                client.oauth.refresh_token()
-                print("✅ Fitbit tokens refreshed!")
+                try:
+                    client.oauth.refresh_token()
+                    print("✅ Fitbit tokens refreshed!")
+                except SystemExit:
+                    print("❌ Refresh token invalid. Please re-authenticate:")
+                    print("Run: python -m app.fitbit fitbit-auth")
 
         else:
             print("\nInvalid command. Use 'fitbit-auth', 'fitbit-steps', 'fitbit-sleep', 'fitbit-tokens', or 'fitbit-tokens-refresh'.")
