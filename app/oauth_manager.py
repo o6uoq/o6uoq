@@ -152,8 +152,9 @@ class OAuthManager:
                 file.write(f"\n# Tokens expire on {expiration_time_str}\n")
 
     def manage_tokens(self) -> None:
-        """Refresh token and write JSON file."""
-        self.refresh_token()
+        """Refresh token if necessary and write JSON file."""
+        if self.service_name == 'fitbit' or self.is_token_expired():
+            self.refresh_token()
 
         self._create_token_json_file()
 
