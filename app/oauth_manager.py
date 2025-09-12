@@ -130,7 +130,7 @@ class OAuthManager:
                         key, _ = line.strip().split('=', 1)
                         if key in new_values:
                             updated_lines.append(f"{key}={new_values[key]}\n")
-                            found_keys.remove(key)
+                            found_keys.discard(key)
                             continue
 
                     updated_lines.append(line)
@@ -152,8 +152,8 @@ class OAuthManager:
                 file.write(f"\n# Tokens expire on {expiration_time_str}\n")
 
     def manage_tokens(self) -> None:
-        """Check if token is expired and refresh if necessary, then write JSON file."""
-        if self.is_token_expired():
+        """Refresh token if necessary and write JSON file."""
+        if self.service_name == 'fitbit' or self.is_token_expired():
             self.refresh_token()
 
         self._create_token_json_file()
