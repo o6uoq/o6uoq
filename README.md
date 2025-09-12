@@ -11,6 +11,6 @@ I have been an Operations, Systems, DevOps, and Platform Engineer. I've served a
 - <samp> 🚀 I love helping companies start, build and scale (Seed, Series A, Series B, Series C, Series D) </samp><br>
 - <samp> 🤖 Software ate the world — now AI is eating software </samp><br>
 - <samp> 🚶🏼‍♂️ Today I have walked **Error fetching steps: 401 Client Error: Unauthorized for url: https://api.fitbit.com/1/user/-/activities/date/2025-09-12.json** steps and slept for **Error fetching sleep data: 401 Client Error: Unauthorized for url: https://api.fitbit.com/1.2/user/-/sleep/date/2025-09-12.json** </samp><br>
-- <samp> 🏋🏼‍♂️ My last workout was **** for **Lunchtime Lift** </samp><br>
+- <samp> 🏋🏼‍♂️ My last workout was **Lunchtime Lift** for **1h 06m** </samp><br>
 - <samp> ⚡ Fun fact: I was the [Queensland](https://en.wikipedia.org/wiki/Queensland) [Doom II](https://en.wikipedia.org/wiki/Doom_II) champion in the 1990's
 - <samp> 🇦🇺 Made in Australia </samp><br>
