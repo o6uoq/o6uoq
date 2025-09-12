@@ -199,6 +199,14 @@ class OAuthManager:
             self.refresh_token_value = response_json['refresh_token']
             self.expires_at = str(int(time.time()) + response_json['expires_in'])
 
+            new_tokens = {
+                f"{self.service_name.upper()}_ACCESS_TOKEN": self.access_token,
+                f"{self.service_name.upper()}_REFRESH_TOKEN": self.refresh_token_value,
+                f"{self.service_name.upper()}_EXPIRES_AT": self.expires_at
+            }
+            os.environ.update(new_tokens)
+            self._update_env_file(new_tokens)
+
             self._create_token_json_file()
         else:
             print(f"❌ Failed to refresh {self.service_name} token:")
