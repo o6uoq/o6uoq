@@ -130,7 +130,7 @@ class OAuthManager:
                         key, _ = line.strip().split('=', 1)
                         if key in new_values:
                             updated_lines.append(f"{key}={new_values[key]}\n")
-                            found_keys.remove(key)
+                            found_keys.discard(key)
                             continue
 
                     updated_lines.append(line)
