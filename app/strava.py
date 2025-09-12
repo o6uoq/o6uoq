@@ -35,7 +35,6 @@ def main() -> None:
                 print(f"Expires: {client.oauth.expires_at}")
                 print(f"Token Expired: {'❌ Yes' if client.oauth.is_token_expired() else '✅ No'}")
                 client.oauth.manage_tokens()
-                print("🔄 Tokens refreshed and saved!")
             elif command == 'strava-tokens-refresh':
                 print("🔄 Refreshing Strava tokens...")
                 try:
