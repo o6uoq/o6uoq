@@ -28,6 +28,12 @@ def main() -> None:
             if command == 'strava-latest-workout':
                 client.get_latest_workout()
             elif command == 'strava-tokens':
+                print("🔍 Strava Token Status:")
+                print()
+                print(f"Access Token: {'✅ Valid' if client.oauth.access_token else '❌ Missing'}")
+                print(f"Refresh Token: {'✅ Available' if client.oauth.refresh_token_value else '❌ Missing'}")
+                print(f"Expires: {client.oauth.expires_at}")
+                print(f"Token Expired: {'❌ Yes' if client.oauth.is_token_expired() else '✅ No'}")
                 client.oauth.manage_tokens()
             elif command == 'strava-tokens-refresh':
                 print("🔄 Refreshing Strava tokens...")
@@ -42,6 +48,8 @@ def main() -> None:
             print("\nInvalid command. Use 'strava-auth', 'strava-latest-workout', 'strava-tokens', or 'strava-tokens-refresh'.")
     else:
         print("\nUsage: python -m app.strava {strava-auth|strava-latest-workout|strava-tokens|strava-tokens-refresh}")
+
+    print()
 
 
 if __name__ == "__main__":
