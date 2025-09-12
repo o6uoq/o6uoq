@@ -43,7 +43,6 @@ class StravaClient:
                 name = latest_activity.get('name', 'Unknown Activity')
                 elapsed_time = latest_activity.get('elapsed_time', 0)
                 formatted_time = self.format_elapsed_time(elapsed_time)
-                print()
                 print(name)
                 print(formatted_time)
             else:
