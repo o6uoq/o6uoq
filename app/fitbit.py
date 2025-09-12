@@ -31,6 +31,7 @@ def main() -> None:
                 client.get_sleep()
             elif command == 'fitbit-tokens':
                 print("🔍 Fitbit Token Status:")
+                print()
                 print(f"Access Token: {'✅ Valid' if client.oauth.access_token else '❌ Missing'}")
                 print(f"Refresh Token: {'✅ Available' if client.oauth.refresh_token_value else '❌ Missing'}")
                 print(f"Expires: {client.oauth.expires_at}")
