@@ -78,17 +78,26 @@ class OAuthManager:
         auth_code = input("\n📝 Enter the authorization code: ")
         print()  # Add newline after auth code input
 
-        auth_str = f"{self.client_id}:{self.client_secret}"
-        auth_b64 = base64.b64encode(auth_str.encode()).decode()
+        data = {
+            "grant_type": "authorization_code",
+            "redirect_uri": self.redirect_uri,
+            "code": auth_code
+        }
+
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+        if self.use_basic_auth:
+            auth_str = f"{self.client_id}:{self.client_secret}"
+            auth_b64 = base64.b64encode(auth_str.encode()).decode()
+            headers["Authorization"] = f"Basic {auth_b64}"
+        else:
+            data["client_id"] = self.client_id
+            data["client_secret"] = self.client_secret
 
         response = requests.post(
             self.token_uri,
-            headers={"Authorization": f"Basic {auth_b64}", "Content-Type": "application/x-www-form-urlencoded"},
-            data={
-                "grant_type": "authorization_code",
-                "redirect_uri": self.redirect_uri,
-                "code": auth_code
-            }
+            headers=headers,
+            data=data
         ).json()
 
         if 'access_token' in response:
@@ -152,9 +161,8 @@ class OAuthManager:
                 file.write(f"\n# Tokens expire on {expiration_time_str}\n")
 
     def manage_tokens(self) -> None:
-        """Refresh token if necessary and write JSON file."""
-        if self.service_name == 'fitbit' or self.is_token_expired():
-            self.refresh_token()
+        """Refresh token always to ensure freshness and write JSON file."""
+        self.refresh_token()
 
         self._create_token_json_file()
 
@@ -184,13 +192,22 @@ class OAuthManager:
             print(f"❌ No refresh token available for {self.service_name.capitalize()}")
             return
 
-        auth_str = f"{self.client_id}:{self.client_secret}"
-        auth_b64 = base64.b64encode(auth_str.encode()).decode()
+        data = {"grant_type": "refresh_token", "refresh_token": self.refresh_token_value}
+
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+        if self.use_basic_auth:
+            auth_str = f"{self.client_id}:{self.client_secret}"
+            auth_b64 = base64.b64encode(auth_str.encode()).decode()
+            headers["Authorization"] = f"Basic {auth_b64}"
+        else:
+            data["client_id"] = self.client_id
+            data["client_secret"] = self.client_secret
 
         response = requests.post(
             self.token_uri,
-            headers={"Authorization": f"Basic {auth_b64}", "Content-Type": "application/x-www-form-urlencoded"},
-            data={"grant_type": "refresh_token", "refresh_token": self.refresh_token_value}
+            headers=headers,
+            data=data
         )
 
         if response.status_code == 200:
