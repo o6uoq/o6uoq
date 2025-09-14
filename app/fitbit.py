@@ -37,8 +37,7 @@ def main() -> None:
                 print(f"Expires: {client.oauth.expires_at}")
                 print(f"Token Expired: {'❌ Yes' if client.oauth.is_token_expired() else '✅ No'}")
                 if not client.oauth.manage_tokens():
-                    with open('fitbit_refresh_failed', 'w') as f:
-                        f.write('1')
+                    sys.exit(1)
             elif command == 'fitbit-tokens-refresh':
                 print("🔄 Refreshing Fitbit tokens...")
                 if client.oauth.refresh_token():
