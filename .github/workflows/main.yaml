@@ -153,8 +153,8 @@ jobs:
 
     - name: Check for token refresh failures
       run: |
-        if [ "$FITBIT_STEPS" = "0" ] && [ "$FITBIT_SLEEP" = "0h 0m" ]; then
-          echo "❌ Token refresh failed - Fitbit data shows defaults"
+        if [ -f fitbit_refresh_failed ]; then
+          echo "❌ Fitbit token refresh failed"
           echo "Please re-authenticate Fitbit tokens:"
           echo "Run: python -m app.fitbit fitbit-auth"
           exit 1

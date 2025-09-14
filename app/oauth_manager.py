@@ -160,12 +160,14 @@ class OAuthManager:
             with open('.env', 'a') as file:
                 file.write(f"\n# Tokens expire on {expiration_time_str}\n")
 
-    def manage_tokens(self) -> None:
+    def manage_tokens(self) -> bool:
         """Refresh token always to ensure freshness and write JSON file."""
-        if not self.refresh_token():
+        success = self.refresh_token()
+        if not success:
             print(f"⚠️  Refresh failed for {self.service_name}, using current tokens", file=sys.stderr)
 
         self._create_token_json_file()
+        return success
 
     def _create_token_json_file(self) -> None:
         """Write current token data to JSON file."""
