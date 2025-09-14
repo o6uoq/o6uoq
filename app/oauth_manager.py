@@ -225,7 +225,6 @@ class OAuthManager:
             os.environ.update(new_tokens)
             self._update_env_file(new_tokens)
 
-            self._create_token_json_file()
             return True
         else:
             print(f"❌ Failed to refresh {self.service_name} token:")
