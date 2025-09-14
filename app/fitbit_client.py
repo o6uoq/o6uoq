@@ -2,6 +2,7 @@
 Fitbit API client for retrieving fitness data.
 """
 
+import sys
 from datetime import datetime, timezone, date
 from typing import Optional
 
@@ -34,7 +35,8 @@ class FitbitClient:
             steps = data['summary']['steps']
             print(f"\n{steps}")
         except requests.exceptions.RequestException as e:
-            print(f"\nError fetching steps: {e}")
+            print(f"\n0")  # Default to 0 steps on error
+            print(f"Error fetching steps: {e}", file=sys.stderr)
 
     def get_sleep(self) -> None:
         """Fetch and display today's sleep data."""
@@ -55,7 +57,8 @@ class FitbitClient:
             hours, minutes_left = divmod(total_minutes, 60)
             print(f"{hours}h {minutes_left}m")
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching sleep data: {e}")
+            print(f"0h 0m")  # Default to 0h 0m on error
+            print(f"Error fetching sleep data: {e}", file=sys.stderr)
 
 
 def create_fitbit_client() -> Optional[FitbitClient]:
