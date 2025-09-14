@@ -163,7 +163,7 @@ class OAuthManager:
     def manage_tokens(self) -> None:
         """Refresh token always to ensure freshness and write JSON file."""
         if not self.refresh_token():
-            print(f"⚠️  Refresh failed for {self.service_name}, using current tokens")
+            print(f"⚠️  Refresh failed for {self.service_name}, using current tokens", file=sys.stderr)
 
         self._create_token_json_file()
 
@@ -227,8 +227,8 @@ class OAuthManager:
 
             return True
         else:
-            print(f"❌ Failed to refresh {self.service_name} token:")
-            print(response.text)
+            print(f"❌ Failed to refresh {self.service_name} token:", file=sys.stderr)
+            print(response.text, file=sys.stderr)
             return False
 
     def is_token_expired(self) -> bool:
@@ -241,7 +241,7 @@ class OAuthManager:
         """Ensure we have a valid token, refreshing if necessary."""
         if self.is_token_expired():
             if not self.refresh_token():
-                print(f"⚠️  Failed to refresh expired {self.service_name} token")
+                print(f"⚠️  Failed to refresh expired {self.service_name} token", file=sys.stderr)
 
 
 def create_oauth_manager(service_name: str) -> Optional[OAuthManager]:
