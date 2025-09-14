@@ -2,6 +2,7 @@
 Strava API client for retrieving fitness data.
 """
 
+import sys
 from typing import Optional
 
 import requests
@@ -46,9 +47,12 @@ class StravaClient:
                 print(name)
                 print(formatted_time)
             else:
-                print("No recent activities found.")
+                print("No Activity")
+                print("0m")
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching Strava activities: {e}")
+            print("No Activity")  # Default on error
+            print("0m")
+            print(f"Error fetching Strava activities: {e}", file=sys.stderr)
 
 
 def create_strava_client() -> Optional[StravaClient]:

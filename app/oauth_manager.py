@@ -160,11 +160,14 @@ class OAuthManager:
             with open('.env', 'a') as file:
                 file.write(f"\n# Tokens expire on {expiration_time_str}\n")
 
-    def manage_tokens(self) -> None:
+    def manage_tokens(self) -> bool:
         """Refresh token always to ensure freshness and write JSON file."""
-        self.refresh_token()
+        success = self.refresh_token()
+        if not success:
+            print(f"⚠️  Refresh failed for {self.service_name}, using current tokens", file=sys.stderr)
 
         self._create_token_json_file()
+        return success
 
     def _create_token_json_file(self) -> None:
         """Write current token data to JSON file."""
@@ -186,11 +189,11 @@ class OAuthManager:
 
         print(f"✅ Created {json_filename} for GitHub Actions artifacts")
 
-    def refresh_token(self) -> None:
+    def refresh_token(self) -> bool:
         """Refresh the access token using the refresh token."""
         if not self.refresh_token_value:
             print(f"❌ No refresh token available for {self.service_name.capitalize()}")
-            return
+            return False
 
         data = {"grant_type": "refresh_token", "refresh_token": self.refresh_token_value}
 
@@ -224,11 +227,11 @@ class OAuthManager:
             os.environ.update(new_tokens)
             self._update_env_file(new_tokens)
 
-            self._create_token_json_file()
+            return True
         else:
-            print(f"❌ Failed to refresh {self.service_name} token:")
-            print(response.text)
-            sys.exit(1)
+            print(f"❌ Failed to refresh {self.service_name} token:", file=sys.stderr)
+            print(response.text, file=sys.stderr)
+            return False
 
     def is_token_expired(self) -> bool:
         """Check if the current access token is expired."""
@@ -239,7 +242,8 @@ class OAuthManager:
     def ensure_valid_token(self) -> None:
         """Ensure we have a valid token, refreshing if necessary."""
         if self.is_token_expired():
-            self.refresh_token()
+            if not self.refresh_token():
+                print(f"⚠️  Failed to refresh expired {self.service_name} token", file=sys.stderr)
 
 
 def create_oauth_manager(service_name: str) -> Optional[OAuthManager]:
