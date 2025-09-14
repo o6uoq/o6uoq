@@ -120,10 +120,13 @@ jobs:
     - name: Build Docker image
       run: docker build -t fitness-cli .
 
-    - name: Run GitHub Profile Tokens commands
-      run: |
-        docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.fitbit fitbit-tokens
-        docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.strava strava-tokens
+    - name: Run Fitbit tokens
+      id: fitbit_tokens
+      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.fitbit fitbit-tokens
+      continue-on-error: true
+
+    - name: Run Strava tokens
+      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.strava strava-tokens
 
     - name: Update README
       run: |
@@ -152,13 +155,12 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Check for token refresh failures
+      if: steps.fitbit_tokens.outcome == 'failure'
       run: |
-        if [ -f fitbit_refresh_failed ]; then
-          echo "❌ Fitbit token refresh failed"
-          echo "Please re-authenticate Fitbit tokens:"
-          echo "Run: python -m app.fitbit fitbit-auth"
-          exit 1
-        fi
+        echo "❌ Fitbit token refresh failed"
+        echo "Please re-authenticate Fitbit tokens:"
+        echo "Run: python -m app.fitbit fitbit-auth"
+        exit 1
 
     - name: Upload Fitbit Tokens to GitHub Artifacts
       uses: actions/upload-artifact@v4
