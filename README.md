@@ -10,7 +10,7 @@ I have been an Operations, Systems, DevOps, and Platform Engineer. I've served a
 
 - <samp> 🚀 I love helping companies start, build and scale (Seed, Series A, Series B, Series C, Series D) </samp><br>
 - <samp> 🤖 Software ate the world — now AI is eating software </samp><br>
-- <samp> 🚶🏼‍♂️ Today I have walked **6433** steps and slept for **6h 1m** </samp><br>
+- <samp> 🚶🏼‍♂️ Today I have walked **10265** steps and slept for **8h 18m** </samp><br>
 - <samp> 🏋🏼‍♂️ My last workout was **High Intensity Interval Training** for **48m** </samp><br>
 - <samp> ⚡ Fun fact: I was the [Queensland](https://en.wikipedia.org/wiki/Queensland) [Doom II](https://en.wikipedia.org/wiki/Doom_II) champion in the 1990's
 - <samp> 🇦🇺 Made in Australia </samp><br>
