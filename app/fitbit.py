@@ -13,23 +13,23 @@ def main() -> None:
     if len(sys.argv) > 1:
         command = sys.argv[1]
 
-        if command == 'fitbit-auth':
-            oauth_manager = create_oauth_manager('fitbit')
+        if command == "fitbit-auth":
+            oauth_manager = create_oauth_manager("fitbit")
             if oauth_manager:
                 oauth_manager.authenticate()
             else:
                 sys.exit(1)
 
-        elif command in ('fitbit-steps', 'fitbit-sleep', 'fitbit-tokens', 'fitbit-tokens-refresh'):
+        elif command in ("fitbit-steps", "fitbit-sleep", "fitbit-tokens", "fitbit-tokens-refresh"):
             client = create_fitbit_client()
             if not client:
                 sys.exit(1)
 
-            if command == 'fitbit-steps':
+            if command == "fitbit-steps":
                 client.get_steps()
-            elif command == 'fitbit-sleep':
+            elif command == "fitbit-sleep":
                 client.get_sleep()
-            elif command == 'fitbit-tokens':
+            elif command == "fitbit-tokens":
                 print("🔍 Fitbit Token Status:")
                 print()
                 print(f"Access Token: {'✅ Valid' if client.oauth.access_token else '❌ Missing'}")
@@ -38,7 +38,7 @@ def main() -> None:
                 print(f"Token Expired: {'❌ Yes' if client.oauth.is_token_expired() else '✅ No'}")
                 if not client.oauth.manage_tokens():
                     sys.exit(1)
-            elif command == 'fitbit-tokens-refresh':
+            elif command == "fitbit-tokens-refresh":
                 print("🔄 Refreshing Fitbit tokens...")
                 if client.oauth.refresh_token():
                     print("✅ Fitbit tokens refreshed!")
@@ -47,9 +47,12 @@ def main() -> None:
                     print("Run: python -m app.fitbit fitbit-auth")
 
         else:
-            print("\nInvalid command. Use 'fitbit-auth', 'fitbit-steps', 'fitbit-sleep', 'fitbit-tokens', or 'fitbit-tokens-refresh'.")
+            print("\nInvalid command. Use 'fitbit-auth', 'fitbit-steps', 'fitbit-sleep',")
+            print("'fitbit-tokens', or 'fitbit-tokens-refresh'.")
     else:
-        print("\nUsage: python -m app.fitbit {fitbit-auth|fitbit-steps|fitbit-sleep|fitbit-tokens|fitbit-tokens-refresh}")
+        print(
+            "\nUsage: python -m app.fitbit {fitbit-auth|fitbit-steps|fitbit-sleep|fitbit-tokens|fitbit-tokens-refresh}"
+        )
 
     print()
 

@@ -8,18 +8,13 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime, timezone
-from typing import Dict, Optional
+from datetime import UTC, datetime
 
 import requests
 from dotenv import load_dotenv
 
 # Configure logging - RFC5424 compatible, minimalist
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
 
 
@@ -36,12 +31,12 @@ class OAuthManager:
         prefix = self.service_name.upper()
 
         # Service-specific endpoints and requirements
-        if self.service_name == 'fitbit':
+        if self.service_name == "fitbit":
             self.auth_uri = "https://www.fitbit.com/oauth2/authorize"
             self.token_uri = "https://api.fitbit.com/oauth2/token"
             self.scope = "activity%20sleep"
             self.use_basic_auth = True
-        elif self.service_name == 'strava':
+        elif self.service_name == "strava":
             self.auth_uri = "https://www.strava.com/oauth/authorize"
             self.token_uri = "https://www.strava.com/oauth/token"
             self.scope = "activity:read"
@@ -62,9 +57,12 @@ class OAuthManager:
         required = [self.client_id, self.client_secret, self.redirect_uri]
         if not all(required):
             missing = []
-            if not self.client_id: missing.append(f"{prefix}_CLIENT_ID")
-            if not self.client_secret: missing.append(f"{prefix}_CLIENT_SECRET")
-            if not self.redirect_uri: missing.append(f"{prefix}_REDIRECT_URI")
+            if not self.client_id:
+                missing.append(f"{prefix}_CLIENT_ID")
+            if not self.client_secret:
+                missing.append(f"{prefix}_CLIENT_SECRET")
+            if not self.redirect_uri:
+                missing.append(f"{prefix}_REDIRECT_URI")
             print(f"Error: Missing {self.service_name} environment variables: {', '.join(missing)}")
             sys.exit(1)
 
@@ -72,17 +70,16 @@ class OAuthManager:
         """Handle OAuth authentication flow."""
         print("\n🔗 Please go to the following URL to authorize the application and get the code:")
 
-        auth_url = f"{self.auth_uri}?response_type=code&client_id={self.client_id}&redirect_uri={self.redirect_uri}&scope={self.scope}"
+        auth_url = (
+            f"{self.auth_uri}?response_type=code&client_id={self.client_id}"
+            f"&redirect_uri={self.redirect_uri}&scope={self.scope}"
+        )
         print(auth_url)
 
         auth_code = input("\n📝 Enter the authorization code: ")
         print()  # Add newline after auth code input
 
-        data = {
-            "grant_type": "authorization_code",
-            "redirect_uri": self.redirect_uri,
-            "code": auth_code
-        }
+        data = {"grant_type": "authorization_code", "redirect_uri": self.redirect_uri, "code": auth_code}
 
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
@@ -94,18 +91,14 @@ class OAuthManager:
             data["client_id"] = self.client_id
             data["client_secret"] = self.client_secret
 
-        response = requests.post(
-            self.token_uri,
-            headers=headers,
-            data=data
-        ).json()
+        response = requests.post(self.token_uri, headers=headers, data=data).json()
 
-        if 'access_token' in response:
-            expires_in = response['expires_in']
+        if "access_token" in response:
+            expires_in = response["expires_in"]
             new_tokens = {
-                f"{self.service_name.upper()}_ACCESS_TOKEN": response['access_token'],
-                f"{self.service_name.upper()}_REFRESH_TOKEN": response['refresh_token'],
-                f"{self.service_name.upper()}_EXPIRES_AT": str(int(time.time()) + expires_in)
+                f"{self.service_name.upper()}_ACCESS_TOKEN": response["access_token"],
+                f"{self.service_name.upper()}_REFRESH_TOKEN": response["refresh_token"],
+                f"{self.service_name.upper()}_EXPIRES_AT": str(int(time.time()) + expires_in),
             }
             os.environ.update(new_tokens)
             self._update_env_file(new_tokens)
@@ -121,22 +114,22 @@ class OAuthManager:
             print(response)
             sys.exit(1)
 
-    def _update_env_file(self, new_values: Dict[str, str]) -> None:
+    def _update_env_file(self, new_values: dict[str, str]) -> None:
         """Update the .env file with new token values."""
         updated_lines = []
         found_keys = set(new_values.keys())
 
         try:
-            with open('.env', 'r') as file:
+            with open(".env") as file:
                 for line in file:
                     # Preserve comments and empty lines
-                    if line.strip().startswith('#') or not line.strip():
+                    if line.strip().startswith("#") or not line.strip():
                         updated_lines.append(line)
                         continue
 
                     # Update key-value pairs
-                    if '=' in line:
-                        key, _ = line.strip().split('=', 1)
+                    if "=" in line:
+                        key, _ = line.strip().split("=", 1)
                         if key in new_values:
                             updated_lines.append(f"{key}={new_values[key]}\n")
                             found_keys.discard(key)
@@ -150,14 +143,14 @@ class OAuthManager:
         for key in found_keys:
             updated_lines.append(f"{key}={new_values[key]}\n")
 
-        with open('.env', 'w') as file:
+        with open(".env", "w") as file:
             file.writelines(updated_lines)
 
         # Append expiration time as comment
         if f"{self.service_name.upper()}_EXPIRES_AT" in new_values:
-            expiration_time = datetime.fromtimestamp(int(new_values[f"{self.service_name.upper()}_EXPIRES_AT"]), timezone.utc)
-            expiration_time_str = expiration_time.strftime('%Y-%m-%d %H:%M:%S %Z')
-            with open('.env', 'a') as file:
+            expiration_time = datetime.fromtimestamp(int(new_values[f"{self.service_name.upper()}_EXPIRES_AT"]), UTC)
+            expiration_time_str = expiration_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+            with open(".env", "a") as file:
                 file.write(f"\n# Tokens expire on {expiration_time_str}\n")
 
     def manage_tokens(self) -> bool:
@@ -179,13 +172,13 @@ class OAuthManager:
         token_data = {
             f"{prefix}_ACCESS_TOKEN": self.access_token or "",
             f"{prefix}_REFRESH_TOKEN": self.refresh_token_value or "",
-            f"{prefix}_EXPIRES_AT": self.expires_at or ""
+            f"{prefix}_EXPIRES_AT": self.expires_at or "",
         }
 
         json_filename = f"{self.service_name.lower()}_tokens.json"
-        with open(json_filename, 'w') as file:
+        with open(json_filename, "w") as file:
             json.dump(token_data, file, indent=4)
-            file.write('\n')
+            file.write("\n")
 
         print(f"✅ Created {json_filename} for GitHub Actions artifacts")
 
@@ -207,22 +200,18 @@ class OAuthManager:
             data["client_id"] = self.client_id
             data["client_secret"] = self.client_secret
 
-        response = requests.post(
-            self.token_uri,
-            headers=headers,
-            data=data
-        )
+        response = requests.post(self.token_uri, headers=headers, data=data)
 
         if response.status_code == 200:
             response_json = response.json()
-            self.access_token = response_json['access_token']
-            self.refresh_token_value = response_json['refresh_token']
-            self.expires_at = str(int(time.time()) + response_json['expires_in'])
+            self.access_token = response_json["access_token"]
+            self.refresh_token_value = response_json["refresh_token"]
+            self.expires_at = str(int(time.time()) + response_json["expires_in"])
 
             new_tokens = {
                 f"{self.service_name.upper()}_ACCESS_TOKEN": self.access_token,
                 f"{self.service_name.upper()}_REFRESH_TOKEN": self.refresh_token_value,
-                f"{self.service_name.upper()}_EXPIRES_AT": self.expires_at
+                f"{self.service_name.upper()}_EXPIRES_AT": self.expires_at,
             }
             os.environ.update(new_tokens)
             self._update_env_file(new_tokens)
@@ -246,7 +235,7 @@ class OAuthManager:
                 print(f"⚠️  Failed to refresh expired {self.service_name} token", file=sys.stderr)
 
 
-def create_oauth_manager(service_name: str) -> Optional[OAuthManager]:
+def create_oauth_manager(service_name: str) -> OAuthManager | None:
     """Create OAuth manager for specified service."""
     try:
         return OAuthManager(service_name)

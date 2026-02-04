@@ -12,11 +12,10 @@ Command-line tools for Fitbit and Strava APIs.
 ```bash
 # Using uv (recommended)
 brew install uv
-uv venv && source .venv/bin/activate
-uv pip install -r requirements.txt
+uv sync
 
 # Or using pip
-pip install -r requirements.txt
+pip install .
 ```
 
 ### Environment
