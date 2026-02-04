@@ -4,6 +4,13 @@ on:
   push:
   schedule:
     - cron: '0 */4 * * *'
+  workflow_dispatch:
+    inputs:
+      skip_artifact:
+        description: 'Skip artifact download and use GitHub Secrets directly (use when manually refreshing tokens)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-and-run:
@@ -69,7 +76,7 @@ jobs:
         name: fitbit-tokens
         run-id: ${{ steps.get-successful-run.outputs.runId }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-      if: steps.get-successful-run.outputs.found == 'true'
+      if: steps.get-successful-run.outputs.found == 'true' && inputs.skip_artifact != true
       continue-on-error: true
 
     - name: Download Strava Tokens from GitHub Artifacts
@@ -78,13 +85,18 @@ jobs:
         name: strava-tokens
         run-id: ${{ steps.get-successful-run.outputs.runId }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-      if: steps.get-successful-run.outputs.found == 'true'
+      if: steps.get-successful-run.outputs.found == 'true' && inputs.skip_artifact != true
       continue-on-error: true
 
     - name: Echo Workflow Run Information
       run: |
         echo "[INFO] Current Workflow Run ID: $GITHUB_RUN_ID"
-        echo "[INFO] Attempting to download artifact from Run ID: ${{ steps.get-successful-run.outputs.runId }}"
+        echo "[INFO] Skip artifact input: ${{ inputs.skip_artifact }}"
+        if [ "${{ inputs.skip_artifact }}" = "true" ]; then
+          echo "[INFO] Skipping artifact download - using GitHub Secrets directly"
+        else
+          echo "[INFO] Attempting to download artifact from Run ID: ${{ steps.get-successful-run.outputs.runId }}"
+        fi
 
     - name: Check download status and notify if failed
       if: failure() && steps.get-successful-run.outputs.found == 'true' # This step runs if the download step failed

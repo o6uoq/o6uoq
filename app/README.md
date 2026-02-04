@@ -91,15 +91,17 @@ docker run --env-file .env -v $(pwd):/app fitness-cli python -m app.fitbit fitbi
 When tokens expire and need manual re-authentication:
 
 ```bash
-# Re-authenticate and push tokens to GitHub
+# Re-authenticate and push tokens to GitHub Secrets
 uv run python -m app.fitbit fitbit-auth && \
   gh secret set FITBIT_ACCESS_TOKEN --body "$(grep '^FITBIT_ACCESS_TOKEN=' .env | cut -d= -f2)" && \
   gh secret set FITBIT_REFRESH_TOKEN --body "$(grep '^FITBIT_REFRESH_TOKEN=' .env | cut -d= -f2)" && \
   gh variable set FITBIT_EXPIRES_AT --body "$(grep '^FITBIT_EXPIRES_AT=' .env | cut -d= -f2)"
 
-# Trigger workflow to verify
-gh workflow run main.yaml
+# Trigger workflow with skip_artifact to use GitHub Secrets instead of stale artifacts
+gh workflow run main.yaml -f skip_artifact=true
 ```
+
+**Note:** The `skip_artifact=true` flag tells the workflow to use GitHub Secrets directly instead of downloading tokens from the previous run's artifacts. Use this when you've manually refreshed tokens.
 
 ## Notes
 
