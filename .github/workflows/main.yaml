@@ -134,18 +134,18 @@ jobs:
 
     - name: Run Fitbit tokens
       id: fitbit_tokens
-      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.fitbit fitbit-tokens
+      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.fitbit fitbit-tokens
       continue-on-error: true
 
     - name: Run Strava tokens
-      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.strava strava-tokens
+      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.strava strava-tokens
 
     - name: Update README
       run: |
-        FITBIT_STEPS=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.fitbit fitbit-steps | tr -d '\n')
-        FITBIT_SLEEP=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.fitbit fitbit-sleep | tr -d '\n')
-        STRAVA_WORKOUT=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.strava strava-latest-workout | awk 'NR==1')
-        STRAVA_WORKOUT_TIME=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli python -m app.strava strava-latest-workout | awk 'NR==2')
+        FITBIT_STEPS=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.fitbit fitbit-steps | tr -d '\n')
+        FITBIT_SLEEP=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.fitbit fitbit-sleep | tr -d '\n')
+        STRAVA_WORKOUT=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.strava strava-latest-workout | awk 'NR==1')
+        STRAVA_WORKOUT_TIME=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.strava strava-latest-workout | awk 'NR==2')
         sed -i "s|^- <samp> 🚶🏼‍♂️ Today I have walked .* steps and slept for .* <\/samp><br>$|- <samp> 🚶🏼‍♂️ Today I have walked **$FITBIT_STEPS** steps and slept for **$FITBIT_SLEEP** <\/samp><br>|" README.md
         sed -i "s/^- <samp> 🏋🏼‍♂️ My last workout was \*\*.*\*\* for \*\*.*\*\* <\/samp><br>$/- <samp> 🏋🏼‍♂️ My last workout was **$STRAVA_WORKOUT** for **$STRAVA_WORKOUT_TIME** <\/samp><br>/" README.md
         echo "[INFO] Fitbit Steps: $FITBIT_STEPS"
