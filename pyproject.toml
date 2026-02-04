@@ -1,0 +1,16 @@
+[project]
+name = "fitness-cli"
+version = "1.0.0"
+description = "CLI tools for Fitbit and Strava APIs"
+requires-python = ">=3.13"
+dependencies = [
+    "requests>=2.32.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

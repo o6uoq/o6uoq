@@ -4,12 +4,12 @@ FROM python:3.13-slim
 # Set the working directory in the container to /app
 WORKDIR /app
 
+# Copy dependency files and install with uv
+COPY pyproject.toml uv.lock ./
+RUN pip install uv && uv sync --frozen --no-dev
+
 # Copy the current directory contents into the container at /app
 COPY . /app
-
-# Install any required Python packages specified in requirements.txt
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Run Python when the container launches
 CMD ["python"]

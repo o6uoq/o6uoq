@@ -3,7 +3,6 @@ Strava API client for retrieving fitness data.
 """
 
 import sys
-from typing import Optional
 
 import requests
 
@@ -32,17 +31,14 @@ class StravaClient:
 
         try:
             endpoint = "https://www.strava.com/api/v3/athlete/activities"
-            response = requests.get(
-                endpoint,
-                headers={"Authorization": f"Bearer {self.oauth.access_token}"}
-            )
+            response = requests.get(endpoint, headers={"Authorization": f"Bearer {self.oauth.access_token}"})
             response.raise_for_status()
 
             activities = response.json()
             if activities:
                 latest_activity = activities[0]
-                name = latest_activity.get('name', 'Unknown Activity')
-                elapsed_time = latest_activity.get('elapsed_time', 0)
+                name = latest_activity.get("name", "Unknown Activity")
+                elapsed_time = latest_activity.get("elapsed_time", 0)
                 formatted_time = self.format_elapsed_time(elapsed_time)
                 print(name)
                 print(formatted_time)
@@ -55,9 +51,9 @@ class StravaClient:
             print(f"Error fetching Strava activities: {e}", file=sys.stderr)
 
 
-def create_strava_client() -> Optional[StravaClient]:
+def create_strava_client() -> StravaClient | None:
     """Factory function to create Strava client."""
-    oauth_manager = create_oauth_manager('strava')
+    oauth_manager = create_oauth_manager("strava")
     if oauth_manager:
         return StravaClient(oauth_manager)
     return None

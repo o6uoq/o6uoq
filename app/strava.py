@@ -13,21 +13,21 @@ def main() -> None:
     if len(sys.argv) > 1:
         command = sys.argv[1]
 
-        if command == 'strava-auth':
-            oauth_manager = create_oauth_manager('strava')
+        if command == "strava-auth":
+            oauth_manager = create_oauth_manager("strava")
             if oauth_manager:
                 oauth_manager.authenticate()
             else:
                 sys.exit(1)
 
-        elif command in ('strava-latest-workout', 'strava-tokens', 'strava-tokens-refresh'):
+        elif command in ("strava-latest-workout", "strava-tokens", "strava-tokens-refresh"):
             client = create_strava_client()
             if not client:
                 sys.exit(1)
 
-            if command == 'strava-latest-workout':
+            if command == "strava-latest-workout":
                 client.get_latest_workout()
-            elif command == 'strava-tokens':
+            elif command == "strava-tokens":
                 print("🔍 Strava Token Status:")
                 print()
                 print(f"Access Token: {'✅ Valid' if client.oauth.access_token else '❌ Missing'}")
@@ -35,7 +35,7 @@ def main() -> None:
                 print(f"Expires: {client.oauth.expires_at}")
                 print(f"Token Expired: {'❌ Yes' if client.oauth.is_token_expired() else '✅ No'}")
                 client.oauth.manage_tokens()
-            elif command == 'strava-tokens-refresh':
+            elif command == "strava-tokens-refresh":
                 print("🔄 Refreshing Strava tokens...")
                 if client.oauth.refresh_token():
                     print("✅ Strava tokens refreshed!")
@@ -44,9 +44,11 @@ def main() -> None:
                     print("Run: python -m app.strava strava-auth")
 
         else:
-            print("\nInvalid command. Use 'strava-auth', 'strava-latest-workout', 'strava-tokens', or 'strava-tokens-refresh'.")
+            print("\nInvalid command. Use 'strava-auth', 'strava-latest-workout',")
+            print("'strava-tokens', or 'strava-tokens-refresh'.")
     else:
-        print("\nUsage: python -m app.strava {strava-auth|strava-latest-workout|strava-tokens|strava-tokens-refresh}")
+        print("\nUsage: python -m app.strava")
+        print("  {strava-auth|strava-latest-workout|strava-tokens|strava-tokens-refresh}")
 
     print()
 
