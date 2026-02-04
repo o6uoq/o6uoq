@@ -86,6 +86,21 @@ docker run --env-file .env -v $(pwd):/app fitness-cli python -m app.fitbit fitbi
 - `fitbit.py` - Fitbit CLI
 - `strava.py` - Strava CLI
 
+## GitHub Actions
+
+When tokens expire and need manual re-authentication:
+
+```bash
+# Re-authenticate and push tokens to GitHub
+uv run python -m app.fitbit fitbit-auth && \
+  gh secret set FITBIT_ACCESS_TOKEN --body "$(grep '^FITBIT_ACCESS_TOKEN=' .env | cut -d= -f2)" && \
+  gh secret set FITBIT_REFRESH_TOKEN --body "$(grep '^FITBIT_REFRESH_TOKEN=' .env | cut -d= -f2)" && \
+  gh variable set FITBIT_EXPIRES_AT --body "$(grep '^FITBIT_EXPIRES_AT=' .env | cut -d= -f2)"
+
+# Trigger workflow to verify
+gh workflow run main.yaml
+```
+
 ## Notes
 
 - Tokens auto-refresh when expired
