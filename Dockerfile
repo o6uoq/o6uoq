@@ -11,5 +11,5 @@ RUN pip install uv && uv sync --frozen --no-dev
 # Copy the current directory contents into the container at /app
 COPY . /app
 
-# Run Python when the container launches
-CMD ["python"]
+# Run Python via uv to use the virtual environment
+CMD ["uv", "run", "python"]
