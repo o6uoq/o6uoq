@@ -4,7 +4,7 @@
 
 I love people, problem-solving and engineering. From industry conglomerates in travel ([Expedia](https://expediagroup.com/)), connected cars ([Toyota](https://www.toyota.com/)), video games ([Riot Games](https://www.riotgames.com/)), to early-stage FinTech start-ups ([Open Banking](https://www.openbanking.org.uk/), [Banked](https://banked.com/)), scale-ups ([Dream11](https://www.dream11.com/)), and the world’s largest supermarket ([Tesco](https://www.tesco.com/)).
 
-Operations, Systems, DevOps, Platform Engineer. Lead, Head, Principal, VP, CTO. I've founded and failed, built and scaled teams from 0→1, and delivered across start-ups, scale-ups, enterprises and multinationals. From data centres to cloud, containers to Kubernetes, kaizen to customers — my focus has always been effective, efficient and excellent engineering.
+Operations, Systems, DevOps, Platform Engineer — Lead, Head, Principal, VP, CTO. I've founded and failed, built and scaled teams from 0→1, and delivered across start-ups, scale-ups, enterprises and multinationals. From data centres to cloud, containers to Kubernetes, kaizen to customers — my focus has always been effective, efficient and excellent engineering.
 
 <p>
 
