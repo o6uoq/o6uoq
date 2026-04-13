@@ -18,7 +18,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -49,7 +49,7 @@ jobs:
 
     - name: Get most recent successful run
       id: get-successful-run
-      uses: actions/github-script@v7  
+      uses: actions/github-script@v9
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
@@ -71,7 +71,7 @@ jobs:
           }
 
     - name: Download Fitbit Tokens from GitHub Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: fitbit-tokens
         run-id: ${{ steps.get-successful-run.outputs.runId }}
@@ -80,7 +80,7 @@ jobs:
       continue-on-error: true
 
     - name: Download Strava Tokens from GitHub Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: strava-tokens
         run-id: ${{ steps.get-successful-run.outputs.runId }}
@@ -166,22 +166,35 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Check for token refresh failures
-      if: steps.fitbit_tokens.outcome == 'failure'
+    - name: Report Fitbit token refresh failure
+      if: always() && steps.fitbit_tokens.outcome == 'failure'
       run: |
-        echo "❌ Fitbit token refresh failed"
-        echo "Please re-authenticate Fitbit tokens:"
-        echo "Run: python -m app.fitbit fitbit-auth"
-        exit 1
+        echo "::warning::Fitbit token refresh failed. Re-authenticate and update GitHub secrets/vars."
+        {
+          echo "## Fitbit token refresh required"
+          echo ""
+          echo "The workflow continued, but Fitbit token refresh failed."
+          echo "Run locally:"
+          echo "\`./scripts/refresh-fitbit-secrets.sh --dispatch\`"
+          echo ""
+          echo "Manual fallback:"
+          echo "1. \`uv run python -m app.fitbit fitbit-auth\`"
+          echo "2. Update \`FITBIT_ACCESS_TOKEN\`, \`FITBIT_REFRESH_TOKEN\` (secrets) and \`FITBIT_EXPIRES_AT\` (variable)"
+          echo "3. Trigger \`main.yaml\` with \`skip_artifact=true\`"
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload Fitbit Tokens to GitHub Artifacts
-      uses: actions/upload-artifact@v4
+      if: always()
+      uses: actions/upload-artifact@v7
       with:
         name: fitbit-tokens
         path: fitbit_tokens.json
+        if-no-files-found: warn
 
     - name: Upload Strava Tokens to GitHub Artifacts
-      uses: actions/upload-artifact@v4
+      if: always()
+      uses: actions/upload-artifact@v7
       with:
         name: strava-tokens
         path: strava_tokens.json
+        if-no-files-found: warn
