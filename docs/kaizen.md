@@ -1,0 +1,1 @@
+2026-04-13T08:54:56Z | ci/workflow | correction | restored hard-fail on fitbit token refresh step while keeping explicit recovery summary + helper script → monitor scheduled run failures and refresh tokens via script when red

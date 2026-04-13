@@ -108,6 +108,7 @@ gh workflow run main.yaml -f skip_artifact=true
 **Notes:**
 - `skip_artifact=true` tells the workflow to use GitHub Secrets/variables instead of tokens from a previous artifact.
 - Fitbit re-authentication is human-in-the-loop (browser OAuth consent required).
+- `./scripts/refresh-fitbit-secrets.sh` is a Bash wrapper but still requires `uv` (it runs `uv run python -m app.fitbit fitbit-auth`).
 
 ## Notes
 
