@@ -91,17 +91,23 @@ docker run --env-file .env -v $(pwd):/app fitness-cli python -m app.fitbit fitbi
 When tokens expire and need manual re-authentication:
 
 ```bash
-# Re-authenticate and push tokens to GitHub Secrets
-uv run python -m app.fitbit fitbit-auth && \
-  gh secret set FITBIT_ACCESS_TOKEN --body "$(grep '^FITBIT_ACCESS_TOKEN=' .env | cut -d= -f2)" && \
-  gh secret set FITBIT_REFRESH_TOKEN --body "$(grep '^FITBIT_REFRESH_TOKEN=' .env | cut -d= -f2)" && \
-  gh variable set FITBIT_EXPIRES_AT --body "$(grep '^FITBIT_EXPIRES_AT=' .env | cut -d= -f2)"
+# One-command recovery: OAuth re-auth + secret/variable update + workflow dispatch
+./scripts/refresh-fitbit-secrets.sh --dispatch
+```
 
-# Trigger workflow with skip_artifact to use GitHub Secrets instead of stale artifacts
+Manual fallback:
+
+```bash
+uv run python -m app.fitbit fitbit-auth
+gh secret set FITBIT_ACCESS_TOKEN --body "$(grep '^FITBIT_ACCESS_TOKEN=' .env | cut -d= -f2)"
+gh secret set FITBIT_REFRESH_TOKEN --body "$(grep '^FITBIT_REFRESH_TOKEN=' .env | cut -d= -f2)"
+gh variable set FITBIT_EXPIRES_AT --body "$(grep '^FITBIT_EXPIRES_AT=' .env | cut -d= -f2)"
 gh workflow run main.yaml -f skip_artifact=true
 ```
 
-**Note:** The `skip_artifact=true` flag tells the workflow to use GitHub Secrets directly instead of downloading tokens from the previous run's artifacts. Use this when you've manually refreshed tokens.
+**Notes:**
+- `skip_artifact=true` tells the workflow to use GitHub Secrets/variables instead of tokens from a previous artifact.
+- Fitbit re-authentication is human-in-the-loop (browser OAuth consent required).
 
 ## Notes
 
