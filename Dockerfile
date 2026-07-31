@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy dependency files and install with uv
 COPY pyproject.toml uv.lock ./
-RUN pip install uv && uv sync --frozen --no-dev
+RUN pip install uv==0.12.1 && uv sync --frozen --no-dev
 
 # Copy the current directory contents into the container at /app
 COPY . /app
