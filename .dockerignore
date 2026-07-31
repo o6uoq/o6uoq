@@ -1,0 +1,10 @@
+**/__pycache__
+*.py[cod]
+*tokens*.json
+.DS_Store
+.env
+.git
+.github
+.pytest_cache
+.ruff_cache
+.venv
