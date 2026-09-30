@@ -163,9 +163,9 @@ def test_profile_preserves_strava_and_recovers_stale_fitbit(monkeypatch, tmp_pat
     assert update_profile(path) == 1
     assert "**123** steps" in path.read_text()
     assert "**Ride** for **1h 02m**" in path.read_text()
-    assert path.read_text().count("Update unavailable") == 1
+    assert path.read_text().count("Strava updates are unavailable right now") == 1
     assert update_profile(path) == 1
-    assert path.read_text().count("Update unavailable") == 1
+    assert path.read_text().count("Strava updates are unavailable right now") == 1
 
 
 def test_unexpected_data_preserves_profile(monkeypatch, tmp_path):
@@ -219,3 +219,46 @@ def test_cli_http_failure_exit_and_safe_diagnostic(monkeypatch, capsys, module, 
     assert output.out == ""
     assert "Inactive" in output.err
     assert "secret-token" not in output.err
+
+
+@pytest.mark.parametrize("old_workout", ["My last workout was **No Activity** for **0m**", "No workouts yet."])
+def test_workout_failure_has_friendly_message_and_recovers(monkeypatch, tmp_path, old_workout):
+    from app.profile import update_profile
+
+    path = tmp_path / "README.md"
+    path.write_text(
+        "- <samp> 🚶🏼‍♂️ Today I have walked **1** steps and slept for **7h 0m** </samp><br>\n"
+        f"- <samp> 🏋🏼‍♂️ {old_workout} </samp><br>\n"
+    )
+    failed = True
+
+    def run(command, **kwargs):
+        data = {"fitbit-steps": "2\n", "fitbit-sleep": "7h 0m\n", "strava-latest-workout": "Ride\n45m\n"}
+        error = failed and command[-1] == "strava-latest-workout"
+        return subprocess.CompletedProcess(command, int(error), "" if error else data[command[-1]], "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert update_profile(path) == 1
+    assert "Workout updates are unavailable right now." in path.read_text()
+    assert "No Activity" not in path.read_text()
+    assert update_profile(path) == 1
+    assert path.read_text().count("Workout updates are unavailable right now.") == 1
+    failed = False
+    assert update_profile(path) == 0
+    assert "**Ride** for **45m**" in path.read_text()
+    assert "unavailable" not in path.read_text()
+
+
+def test_empty_workout_profile_is_friendly(monkeypatch, tmp_path):
+    from app.profile import update_profile
+
+    path = tmp_path / "README.md"
+    path.write_text(
+        "- <samp> 🚶🏼‍♂️ Today I have walked **1** steps and slept for **7h 0m** </samp><br>\n"
+        "- <samp> 🏋🏼‍♂️ Workout updates are unavailable right now. </samp><br>\n"
+    )
+    data = {"fitbit-steps": "2\n", "fitbit-sleep": "7h 0m\n", "strava-latest-workout": "No Activity\n0m\n"}
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, data[cmd[-1]], ""))
+    assert update_profile(path) == 0
+    assert "No workouts yet." in path.read_text()
+    assert "unavailable" not in path.read_text()

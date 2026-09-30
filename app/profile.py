@@ -31,9 +31,19 @@ def mark_unavailable(text: str, prefix: str) -> str:
     note = " <sub>Update unavailable; previous data shown</sub>"
     for line in text.splitlines():
         if line.startswith(prefix):
-            line = line.replace("Today I have walked ", "Last recorded: I walked ")
-            if not line.endswith(note):
-                line += note
+            if prefix == "- <samp> 🏋🏼‍♂️ ":
+                strava_note = " <sub>Strava updates are unavailable right now</sub>"
+                if any(
+                    value in line
+                    for value in ("**No Activity**", "No workouts yet.", "Workout updates are unavailable")
+                ):
+                    line = prefix + "Workout updates are unavailable right now. </samp><br>"
+                else:
+                    line = line.removesuffix(note).removesuffix(strava_note) + strava_note
+            else:
+                line = line.replace("Today I have walked ", "Last recorded: I walked ")
+                if not line.endswith(note):
+                    line += note
             return replace_line(text, prefix, line)
     return text
 
@@ -59,11 +69,12 @@ def update_profile(path: Path) -> int:
         workout = fetch("strava", "strava-latest-workout")
         if len(workout) != 2 or not re.fullmatch(r"(?:\d+h )?\d+m", workout[1]):
             raise ValueError("Unexpected Strava output")
-        text = replace_line(
-            text,
-            "- <samp> 🏋🏼‍♂️ My last workout was ",
-            f"- <samp> 🏋🏼‍♂️ My last workout was **{workout[0]}** for **{workout[1]}** </samp><br>",
+        description = (
+            "No workouts yet."
+            if workout == ["No Activity", "0m"]
+            else f"My last workout was **{workout[0]}** for **{workout[1]}**"
         )
+        text = replace_line(text, "- <samp> 🏋🏼‍♂️ ", f"- <samp> 🏋🏼‍♂️ {description} </samp><br>")
     except (RuntimeError, ValueError, subprocess.TimeoutExpired) as error:
         print(f"Strava update failed: {error}", file=sys.stderr)
         failed = True

@@ -87,7 +87,9 @@ docker run --env-file .env -v $(pwd):/app fitness-cli python -m app.fitbit fitbi
 
 The workflow runs every four hours and on pushes to main. PRs run offline validation.
 It refreshes both services, fetches Strava once, and updates each profile line only when that service succeeds.
-A failed service keeps its previous values, marks them unavailable, and makes the run fail after successful updates are published.
+A failed service keeps previously retrieved data and makes the run fail after successful updates are published.
+Strava failures show “Workout updates are unavailable right now” if no workout is saved.
+A saved workout stays visible with a short notice that Strava updates are unavailable.
 An unavailable Fitbit line can describe a previous day; it is not today's measurement.
 
 Each service restores its newest unexpired token artifact independently. A failed data fetch does not discard successfully rotated tokens.
@@ -113,7 +115,7 @@ Inspect the structured error before deciding to reauthorise:
 - `Application / Status / Inactive`: inspect the application at https://www.strava.com/settings/api. Token refresh does not reactivate an application.
 - Access or refresh authorisation failure: reauthorise and confirm the granted `activity:read` scope. Only Me activities require `activity:read_all`; request broader scope only if needed.
 - Timeout or server failure: keep previous data and retry later.
-- Successful empty activity list: `No Activity / 0m` is valid.
+- Successful empty activity list: the profile shows “No workouts yet.”
 
 After restoring application access, if fresh authorisation is needed:
 
