@@ -4,7 +4,9 @@ Strava CLI tool for retrieving fitness data.
 
 import sys
 
-from .oauth_manager import create_oauth_manager
+import requests
+
+from .oauth_manager import create_oauth_manager, response_summary
 from .strava_client import create_strava_client
 
 
@@ -34,7 +36,8 @@ def main() -> None:
                 print(f"Refresh Token: {'✅ Available' if client.oauth.refresh_token_value else '❌ Missing'}")
                 print(f"Expires: {client.oauth.expires_at}")
                 print(f"Token Expired: {'❌ Yes' if client.oauth.is_token_expired() else '✅ No'}")
-                client.oauth.manage_tokens()
+                if not client.oauth.manage_tokens():
+                    sys.exit(1)
             elif command == "strava-tokens-refresh":
                 print("🔄 Refreshing Strava tokens...")
                 if client.oauth.refresh_token():
@@ -42,6 +45,7 @@ def main() -> None:
                 else:
                     print("❌ Refresh token invalid. Please re-authenticate:")
                     print("Run: python -m app.strava strava-auth")
+                    sys.exit(1)
 
         else:
             print("\nInvalid command. Use 'strava-auth', 'strava-latest-workout',")
@@ -54,4 +58,12 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except requests.RequestException as error:
+        detail = response_summary(error.response) if error.response is not None else type(error).__name__
+        print(f"API request failed: {detail}", file=sys.stderr)
+        sys.exit(1)
+    except (RuntimeError, ValueError, KeyError, TypeError) as error:
+        print(f"Command failed: {type(error).__name__}", file=sys.stderr)
+        sys.exit(1)

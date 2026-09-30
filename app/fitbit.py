@@ -4,8 +4,10 @@ Fitbit CLI tool for retrieving fitness data.
 
 import sys
 
+import requests
+
 from .fitbit_client import create_fitbit_client
-from .oauth_manager import create_oauth_manager
+from .oauth_manager import create_oauth_manager, response_summary
 
 
 def main() -> None:
@@ -45,6 +47,7 @@ def main() -> None:
                 else:
                     print("❌ Refresh token invalid. Please re-authenticate:")
                     print("Run: python -m app.fitbit fitbit-auth")
+                    sys.exit(1)
 
         else:
             print("\nInvalid command. Use 'fitbit-auth', 'fitbit-steps', 'fitbit-sleep',")
@@ -58,4 +61,12 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except requests.RequestException as error:
+        detail = response_summary(error.response) if error.response is not None else type(error).__name__
+        print(f"API request failed: {detail}", file=sys.stderr)
+        sys.exit(1)
+    except (RuntimeError, ValueError, KeyError, TypeError) as error:
+        print(f"Command failed: {type(error).__name__}", file=sys.stderr)
+        sys.exit(1)

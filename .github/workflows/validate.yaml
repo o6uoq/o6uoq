@@ -1,0 +1,29 @@
+name: Validate fitness CLI
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install locked tools
+        run: |
+          python -m pip install uv==0.12.1 pre-commit==4.5.1
+          uv sync --frozen
+      - name: Regression tests
+        run: uv run pytest
+      - name: Type checks
+        run: uv run pyright
+      - name: Pre-commit
+        run: pre-commit run -a

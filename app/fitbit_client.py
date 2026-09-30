@@ -1,9 +1,6 @@
-"""
-Fitbit API client for retrieving fitness data.
-"""
+"""Fitbit API client for retrieving fitness data."""
 
-import sys
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 import requests
 
@@ -17,46 +14,32 @@ class FitbitClient:
         self.oauth = oauth_manager
 
     def get_steps(self) -> None:
-        """Fetch and display today's step count."""
+        """Fetch today's step count; propagate errors instead of publishing zero."""
         self.oauth.ensure_valid_token()
-
-        try:
-            current_date = datetime.now(UTC).strftime("%Y-%m-%d")
-            endpoint = f"https://api.fitbit.com/1/user/-/activities/date/{current_date}.json"
-
-            response = requests.get(endpoint, headers={"Authorization": f"Bearer {self.oauth.access_token}"})
-            response.raise_for_status()
-
-            data = response.json()
-            steps = data["summary"]["steps"]
-            print(f"\n{steps}")
-        except requests.exceptions.RequestException as e:
-            print("\n0")  # Default to 0 steps on error
-            print(f"Error fetching steps: {e}", file=sys.stderr)
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        response = requests.get(
+            f"https://api.fitbit.com/1/user/-/activities/date/{today}.json",
+            headers={"Authorization": f"Bearer {self.oauth.access_token}"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        print(response.json()["summary"]["steps"])
 
     def get_sleep(self) -> None:
-        """Fetch and display today's sleep data."""
+        """Fetch today's sleep using the same UTC date as steps."""
         self.oauth.ensure_valid_token()
-
-        try:
-            today = date.today().strftime("%Y-%m-%d")
-            endpoint = f"https://api.fitbit.com/1.2/user/-/sleep/date/{today}.json"
-
-            response = requests.get(endpoint, headers={"Authorization": f"Bearer {self.oauth.access_token}"})
-            response.raise_for_status()
-
-            data = response.json()
-            total_minutes = data["summary"].get("totalMinutesAsleep", 0)
-            hours, minutes_left = divmod(total_minutes, 60)
-            print(f"{hours}h {minutes_left}m")
-        except requests.exceptions.RequestException as e:
-            print("0h 0m")  # Default to 0h 0m on error
-            print(f"Error fetching sleep data: {e}", file=sys.stderr)
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        response = requests.get(
+            f"https://api.fitbit.com/1.2/user/-/sleep/date/{today}.json",
+            headers={"Authorization": f"Bearer {self.oauth.access_token}"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        total_minutes = response.json()["summary"].get("totalMinutesAsleep", 0)
+        hours, minutes = divmod(total_minutes, 60)
+        print(f"{hours}h {minutes}m")
 
 
 def create_fitbit_client() -> FitbitClient | None:
-    """Factory function to create Fitbit client."""
     oauth_manager = create_oauth_manager("fitbit")
-    if oauth_manager:
-        return FitbitClient(oauth_manager)
-    return None
+    return FitbitClient(oauth_manager) if oauth_manager else None

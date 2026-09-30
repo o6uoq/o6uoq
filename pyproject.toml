@@ -14,3 +14,19 @@ target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.pyright]
+include = ["app"]
+pythonVersion = "3.14"
+typeCheckingMode = "basic"
