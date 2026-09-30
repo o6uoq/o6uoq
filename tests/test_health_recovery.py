@@ -239,10 +239,10 @@ def test_workout_failure_has_friendly_message_and_recovers(monkeypatch, tmp_path
 
     monkeypatch.setattr(subprocess, "run", run)
     assert update_profile(path) == 1
-    assert "Workout updates are unavailable right now." in path.read_text()
+    assert "Workouts unavailable." in path.read_text()
     assert "No Activity" not in path.read_text()
     assert update_profile(path) == 1
-    assert path.read_text().count("Workout updates are unavailable right now.") == 1
+    assert path.read_text().count("Workouts unavailable.") == 1
     failed = False
     assert update_profile(path) == 0
     assert "**Ride** for **45m**" in path.read_text()
@@ -255,7 +255,7 @@ def test_empty_workout_profile_is_friendly(monkeypatch, tmp_path):
     path = tmp_path / "README.md"
     path.write_text(
         "- <samp> 🚶🏼‍♂️ Today I have walked **1** steps and slept for **7h 0m** </samp><br>\n"
-        "- <samp> 🏋🏼‍♂️ Workout updates are unavailable right now. </samp><br>\n"
+        "- <samp> 🏋🏼‍♂️ Workouts unavailable. </samp><br>\n"
     )
     data = {"fitbit-steps": "2\n", "fitbit-sleep": "7h 0m\n", "strava-latest-workout": "No Activity\n0m\n"}
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, data[cmd[-1]], ""))

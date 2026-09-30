@@ -33,11 +33,8 @@ def mark_unavailable(text: str, prefix: str) -> str:
         if line.startswith(prefix):
             if prefix == "- <samp> 🏋🏼‍♂️ ":
                 strava_note = " <sub>Strava updates are unavailable right now</sub>"
-                if any(
-                    value in line
-                    for value in ("**No Activity**", "No workouts yet.", "Workout updates are unavailable")
-                ):
-                    line = prefix + "Workout updates are unavailable right now. </samp><br>"
+                if any(value in line for value in ("**No Activity**", "No workouts yet.", "Workouts unavailable")):
+                    line = prefix + "Workouts unavailable. </samp><br>"
                 else:
                     line = line.removesuffix(note).removesuffix(strava_note) + strava_note
             else:

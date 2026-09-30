@@ -88,7 +88,7 @@ docker run --env-file .env -v $(pwd):/app fitness-cli python -m app.fitbit fitbi
 The workflow runs every four hours and on pushes to main. PRs run offline validation.
 It refreshes both services, fetches Strava once, and updates each profile line only when that service succeeds.
 A failed service keeps previously retrieved data and makes the run fail after successful updates are published.
-Strava failures show “Workout updates are unavailable right now” if no workout is saved.
+Strava failures show “Workouts unavailable” if no workout is saved.
 A saved workout stays visible with a short notice that Strava updates are unavailable.
 An unavailable Fitbit line can describe a previous day; it is not today's measurement.
 
