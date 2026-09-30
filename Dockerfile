@@ -6,7 +6,10 @@ WORKDIR /app
 
 # Copy dependency files and install with uv
 COPY pyproject.toml uv.lock ./
-RUN pip install uv==0.12.1 && uv sync --frozen --no-dev
+RUN pip install uv==0.12.21 && uv sync --frozen --no-dev
+
+# Runtime commands use the installed production dependencies without adding dev tools.
+ENV UV_NO_SYNC=1
 
 # Copy the current directory contents into the container at /app
 COPY . /app

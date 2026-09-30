@@ -2,8 +2,6 @@
 Strava API client for retrieving fitness data.
 """
 
-import sys
-
 import requests
 
 from .oauth_manager import OAuthManager, create_oauth_manager
@@ -29,26 +27,23 @@ class StravaClient:
         """Fetch and display the latest workout data."""
         self.oauth.ensure_valid_token()
 
-        try:
-            endpoint = "https://www.strava.com/api/v3/athlete/activities"
-            response = requests.get(endpoint, headers={"Authorization": f"Bearer {self.oauth.access_token}"})
-            response.raise_for_status()
+        endpoint = "https://www.strava.com/api/v3/athlete/activities"
+        response = requests.get(
+            endpoint, headers={"Authorization": f"Bearer {self.oauth.access_token}"}, params={"per_page": 1}, timeout=30
+        )
+        response.raise_for_status()
 
-            activities = response.json()
-            if activities:
-                latest_activity = activities[0]
-                name = latest_activity.get("name", "Unknown Activity")
-                elapsed_time = latest_activity.get("elapsed_time", 0)
-                formatted_time = self.format_elapsed_time(elapsed_time)
-                print(name)
-                print(formatted_time)
-            else:
-                print("No Activity")
-                print("0m")
-        except requests.exceptions.RequestException as e:
-            print("No Activity")  # Default on error
+        activities = response.json()
+        if activities:
+            latest_activity = activities[0]
+            name = " ".join(latest_activity.get("name", "Unknown Activity").splitlines())
+            elapsed_time = latest_activity.get("elapsed_time", 0)
+            formatted_time = self.format_elapsed_time(elapsed_time)
+            print(name)
+            print(formatted_time)
+        else:
+            print("No Activity")
             print("0m")
-            print(f"Error fetching Strava activities: {e}", file=sys.stderr)
 
 
 def create_strava_client() -> StravaClient | None:

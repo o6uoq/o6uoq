@@ -2,6 +2,7 @@ name: GitHub Profile README Updater Workflow
 
 on:
   push:
+    branches: [main]
   schedule:
     - cron: '0 */4 * * *'
   workflow_dispatch:
@@ -12,9 +13,20 @@ on:
         default: false
         type: boolean
 
+# Token rotation must finish before another run consumes the updated artifacts.
+concurrency:
+  group: health-profile
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build-and-run:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - name: Checkout repository
@@ -47,61 +59,50 @@ jobs:
         STRAVA_REFRESH_TOKEN=${{ secrets.STRAVA_REFRESH_TOKEN }}
         EOF
 
-    - name: Get most recent successful run
-      id: get-successful-run
+    - name: Find latest token artifacts independently
+      id: tokens
+      if: inputs.skip_artifact != true
       uses: actions/github-script@v9
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const { data } = await github.rest.actions.listWorkflowRuns({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            workflow_id: 'main.yaml',
-            status: 'completed',
-          });
-
-          const successfulRun = data.workflow_runs.find(run => run.conclusion === 'success');
-
-          if (!successfulRun) {
-            core.setOutput("runId", null);
-            core.setOutput("found", false);
-          } else {
-            core.setOutput("runId", successfulRun.id);
-            core.setOutput("found", true);
+          const found = new Set();
+          for await (const response of github.paginate.iterator(github.rest.actions.listArtifactsForRepo, {
+            owner: context.repo.owner, repo: context.repo.repo, per_page: 100
+          })) {
+            for (const artifact of response.data) {
+              for (const service of ['fitbit', 'strava']) {
+                if (artifact.name === `${service}-tokens` && !artifact.expired && artifact.workflow_run?.head_branch === 'main' && !found.has(service)) {
+                  core.setOutput(service, artifact.workflow_run.id);
+                  found.add(service);
+                }
+              }
+            }
+            if (found.size === 2) break;
           }
 
-    - name: Download Fitbit Tokens from GitHub Artifacts
+    - name: Download Fitbit tokens
+      id: download_fitbit
       uses: actions/download-artifact@v8
+      if: steps.tokens.outputs.fitbit != ''
+      continue-on-error: true
       with:
         name: fitbit-tokens
-        run-id: ${{ steps.get-successful-run.outputs.runId }}
+        run-id: ${{ steps.tokens.outputs.fitbit }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-      if: steps.get-successful-run.outputs.found == 'true' && inputs.skip_artifact != true
-      continue-on-error: true
 
-    - name: Download Strava Tokens from GitHub Artifacts
+    - name: Download Strava tokens
+      id: download_strava
       uses: actions/download-artifact@v8
+      if: steps.tokens.outputs.strava != ''
+      continue-on-error: true
       with:
         name: strava-tokens
-        run-id: ${{ steps.get-successful-run.outputs.runId }}
+        run-id: ${{ steps.tokens.outputs.strava }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
-      if: steps.get-successful-run.outputs.found == 'true' && inputs.skip_artifact != true
-      continue-on-error: true
 
-    - name: Echo Workflow Run Information
-      run: |
-        echo "[INFO] Current Workflow Run ID: $GITHUB_RUN_ID"
-        echo "[INFO] Skip artifact input: ${{ inputs.skip_artifact }}"
-        if [ "${{ inputs.skip_artifact }}" = "true" ]; then
-          echo "[INFO] Skipping artifact download - using GitHub Secrets directly"
-        else
-          echo "[INFO] Attempting to download artifact from Run ID: ${{ steps.get-successful-run.outputs.runId }}"
-        fi
-
-    - name: Check download status and notify if failed
-      if: failure() && steps.get-successful-run.outputs.found == 'true' # This step runs if the download step failed
-      run: |
-        echo "[ERROR] Artifact download failed."
+    - name: Report token download failures
+      if: steps.download_fitbit.outcome == 'failure' || steps.download_strava.outcome == 'failure'
+      run: echo "::warning::Token artifact download failed; falling back to repository secrets."
 
     - name: Update .env file with latest tokens data
       run: |
@@ -110,9 +111,11 @@ jobs:
           FITBIT_REFRESH_TOKEN=$(jq -r '.FITBIT_REFRESH_TOKEN' fitbit_tokens.json)
           FITBIT_EXPIRES_AT=$(jq -r '.FITBIT_EXPIRES_AT' fitbit_tokens.json)
 
-          echo "FITBIT_ACCESS_TOKEN=$FITBIT_ACCESS_TOKEN" >> .env
-          echo "FITBIT_REFRESH_TOKEN=$FITBIT_REFRESH_TOKEN" >> .env
-          echo "FITBIT_EXPIRES_AT=$FITBIT_EXPIRES_AT" >> .env
+          {
+            printf '%s\n' "FITBIT_ACCESS_TOKEN=$FITBIT_ACCESS_TOKEN"
+            printf '%s\n' "FITBIT_REFRESH_TOKEN=$FITBIT_REFRESH_TOKEN"
+            printf '%s\n' "FITBIT_EXPIRES_AT=$FITBIT_EXPIRES_AT"
+          } >> .env
         else
           echo "[WARN] fitbit_tokens.json not found, skipping .env update."
         fi
@@ -122,9 +125,11 @@ jobs:
           STRAVA_REFRESH_TOKEN=$(jq -r '.STRAVA_REFRESH_TOKEN' strava_tokens.json)
           STRAVA_EXPIRES_AT=$(jq -r '.STRAVA_EXPIRES_AT' strava_tokens.json)
 
-          echo "STRAVA_ACCESS_TOKEN=$STRAVA_ACCESS_TOKEN" >> .env
-          echo "STRAVA_REFRESH_TOKEN=$STRAVA_REFRESH_TOKEN" >> .env
-          echo "STRAVA_EXPIRES_AT=$STRAVA_EXPIRES_AT" >> .env
+          {
+            printf '%s\n' "STRAVA_ACCESS_TOKEN=$STRAVA_ACCESS_TOKEN"
+            printf '%s\n' "STRAVA_REFRESH_TOKEN=$STRAVA_REFRESH_TOKEN"
+            printf '%s\n' "STRAVA_EXPIRES_AT=$STRAVA_EXPIRES_AT"
+          } >> .env
         else
           echo "[WARN] strava_tokens.json not found, skipping .env update."
         fi
@@ -138,54 +143,42 @@ jobs:
       continue-on-error: true
 
     - name: Run Strava tokens
+      id: strava_tokens
+      continue-on-error: true
       run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.strava strava-tokens
 
-    - name: Update README
-      run: |
-        FITBIT_STEPS=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.fitbit fitbit-steps | tr -d '\n')
-        FITBIT_SLEEP=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.fitbit fitbit-sleep | tr -d '\n')
-        STRAVA_WORKOUT=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.strava strava-latest-workout | awk 'NR==1')
-        STRAVA_WORKOUT_TIME=$(docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.strava strava-latest-workout | awk 'NR==2')
-        sed -i "s|^- <samp> 🚶🏼‍♂️ Today I have walked .* steps and slept for .* <\/samp><br>$|- <samp> 🚶🏼‍♂️ Today I have walked **$FITBIT_STEPS** steps and slept for **$FITBIT_SLEEP** <\/samp><br>|" README.md
-        sed -i "s/^- <samp> 🏋🏼‍♂️ My last workout was \*\*.*\*\* for \*\*.*\*\* <\/samp><br>$/- <samp> 🏋🏼‍♂️ My last workout was **$STRAVA_WORKOUT** for **$STRAVA_WORKOUT_TIME** <\/samp><br>/" README.md
-        echo "[INFO] Fitbit Steps: $FITBIT_STEPS"
-        echo "[INFO] Fitbit Sleep: $FITBIT_SLEEP"
-        echo "[INFO] Strava Workout: $STRAVA_WORKOUT"
-        echo "[INFO] Strava Workout Time: $STRAVA_WORKOUT_TIME"
-
-    - name: Display README.md contents
-      run: cat README.md
+    - name: Update README from successful service responses
+      id: profile
+      continue-on-error: true
+      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.profile
 
     - name: Commit and push changes
       run: |
         git config --global user.name 'o6uoq'
         git config --global user.email 'david@git.id.au'
         git add README.md
-        git commit -am "🔄 ci: updating README with health data" || echo "🔄 ci: no changes to commit"
-        git push
+        if ! git diff --cached --quiet; then
+          git commit -m "🔄 ci: updating README with health data"
+          git push
+        fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Fail on Fitbit token refresh failure
-      if: always() && steps.fitbit_tokens.outcome == 'failure'
+    - name: Report service failures
+      if: always() && (steps.fitbit_tokens.outcome == 'failure' || steps.strava_tokens.outcome == 'failure' || steps.profile.outcome == 'failure')
       run: |
-        echo "::warning::Fitbit token refresh failed. Re-authenticate and update GitHub secrets/vars."
+        echo "::error::Health update failed. Existing data was preserved for unavailable services."
         {
-          echo "## Fitbit token refresh required"
-          echo ""
-          echo "The workflow continued, but Fitbit token refresh failed."
-          echo "Run locally:"
-          echo "\`./scripts/refresh-fitbit-secrets.sh --dispatch\`"
-          echo ""
-          echo "Manual fallback:"
-          echo "1. \`uv run python -m app.fitbit fitbit-auth\`"
-          echo "2. Update \`FITBIT_ACCESS_TOKEN\`, \`FITBIT_REFRESH_TOKEN\` (secrets) and \`FITBIT_EXPIRES_AT\` (variable)"
-          echo "3. Trigger \`main.yaml\` with \`skip_artifact=true\`"
+          echo "## Health update needs attention"
+          echo "- Fitbit refresh: ${{ steps.fitbit_tokens.outcome }}"
+          echo "- Strava refresh: ${{ steps.strava_tokens.outcome }}"
+          echo "- Profile fetch: ${{ steps.profile.outcome }}"
+          echo "See app/README.md for diagnosis and recovery."
         } >> "$GITHUB_STEP_SUMMARY"
         exit 1
 
     - name: Upload Fitbit Tokens to GitHub Artifacts
-      if: always()
+      if: always() && steps.fitbit_tokens.outcome == 'success'
       uses: actions/upload-artifact@v7
       with:
         name: fitbit-tokens
@@ -193,7 +186,7 @@ jobs:
         if-no-files-found: warn
 
     - name: Upload Strava Tokens to GitHub Artifacts
-      if: always()
+      if: always() && steps.strava_tokens.outcome == 'success'
       uses: actions/upload-artifact@v7
       with:
         name: strava-tokens

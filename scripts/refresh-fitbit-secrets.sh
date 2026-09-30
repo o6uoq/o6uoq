@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-ENV_FILE="${ENV_FILE:-.env}"
+ENV_FILE=".env"
+cd "$(dirname "$0")/.."
 DISPATCH="false"
 
 if [[ "${1:-}" == "--dispatch" ]]; then
@@ -26,6 +27,7 @@ if ! gh auth status >/dev/null 2>&1; then
   exit 1
 fi
 
+chmod 600 "$ENV_FILE"
 echo "Starting Fitbit OAuth re-authentication..."
 uv run python -m app.fitbit fitbit-auth
 
@@ -47,8 +49,8 @@ FITBIT_REFRESH_TOKEN=$(get_env_value "FITBIT_REFRESH_TOKEN")
 FITBIT_EXPIRES_AT=$(get_env_value "FITBIT_EXPIRES_AT")
 
 echo "Updating GitHub Actions secrets/variables..."
-gh secret set FITBIT_ACCESS_TOKEN --body "$FITBIT_ACCESS_TOKEN"
-gh secret set FITBIT_REFRESH_TOKEN --body "$FITBIT_REFRESH_TOKEN"
+printf '%s' "$FITBIT_ACCESS_TOKEN" | gh secret set FITBIT_ACCESS_TOKEN
+printf '%s' "$FITBIT_REFRESH_TOKEN" | gh secret set FITBIT_REFRESH_TOKEN
 gh variable set FITBIT_EXPIRES_AT --body "$FITBIT_EXPIRES_AT"
 
 echo "Fitbit secrets and variable updated."

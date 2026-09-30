@@ -6,9 +6,11 @@ import base64
 import json
 import logging
 import os
+import re
 import sys
 import time
 from datetime import UTC, datetime
+from getpass import getpass
 
 import requests
 from dotenv import load_dotenv
@@ -16,6 +18,24 @@ from dotenv import load_dotenv
 # Configure logging - RFC5424 compatible, minimalist
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
+
+
+def response_summary(response: requests.Response) -> str:
+    """Report structured error codes without API messages or token-bearing bodies."""
+    parts = [f"HTTP {response.status_code}"]
+    try:
+        body = response.json()
+        errors = body.get("errors", []) if isinstance(body, dict) else []
+        for error in errors:
+            if not isinstance(error, dict):
+                continue
+            for key in ("errorType", "resource", "field", "code"):
+                value = error.get(key)
+                if isinstance(value, str) and re.fullmatch(r"[A-Za-z_]{1,40}", value):
+                    parts.append(f"{key}={value}")
+    except ValueError:
+        pass
+    return "; ".join(parts)
 
 
 class OAuthManager:
@@ -76,7 +96,7 @@ class OAuthManager:
         )
         print(auth_url)
 
-        auth_code = input("\n📝 Enter the authorization code: ")
+        auth_code = getpass("\n📝 Enter the authorization code: ")
         print()  # Add newline after auth code input
 
         data = {"grant_type": "authorization_code", "redirect_uri": self.redirect_uri, "code": auth_code}
@@ -91,7 +111,8 @@ class OAuthManager:
             data["client_id"] = self.client_id
             data["client_secret"] = self.client_secret
 
-        response = requests.post(self.token_uri, headers=headers, data=data).json()
+        token_response = requests.post(self.token_uri, headers=headers, data=data, timeout=30)
+        response = token_response.json()
 
         if "access_token" in response:
             expires_in = response["expires_in"]
@@ -110,8 +131,7 @@ class OAuthManager:
 
             print("✅ Updated tokens and expiration time in the .env file.")
         else:
-            print("❌ Failed to authenticate. Response from API:")
-            print(response)
+            print(f"❌ Failed to authenticate: {response_summary(token_response)}", file=sys.stderr)
             sys.exit(1)
 
     def _update_env_file(self, new_values: dict[str, str]) -> None:
@@ -156,10 +176,8 @@ class OAuthManager:
     def manage_tokens(self) -> bool:
         """Refresh token always to ensure freshness and write JSON file."""
         success = self.refresh_token()
-        if not success:
-            print(f"⚠️  Refresh failed for {self.service_name}, using current tokens", file=sys.stderr)
-
-        self._create_token_json_file()
+        if success:
+            self._create_token_json_file()
         return success
 
     def _create_token_json_file(self) -> None:
@@ -200,7 +218,7 @@ class OAuthManager:
             data["client_id"] = self.client_id
             data["client_secret"] = self.client_secret
 
-        response = requests.post(self.token_uri, headers=headers, data=data)
+        response = requests.post(self.token_uri, headers=headers, data=data, timeout=30)
 
         if response.status_code == 200:
             response_json = response.json()
@@ -219,7 +237,7 @@ class OAuthManager:
             return True
         else:
             print(f"❌ Failed to refresh {self.service_name} token:", file=sys.stderr)
-            print(response.text, file=sys.stderr)
+            print(response_summary(response), file=sys.stderr)
             return False
 
     def is_token_expired(self) -> bool:
@@ -232,7 +250,7 @@ class OAuthManager:
         """Ensure we have a valid token, refreshing if necessary."""
         if self.is_token_expired():
             if not self.refresh_token():
-                print(f"⚠️  Failed to refresh expired {self.service_name} token", file=sys.stderr)
+                raise RuntimeError(f"Failed to refresh expired {self.service_name} token")
 
 
 def create_oauth_manager(service_name: str) -> OAuthManager | None:
