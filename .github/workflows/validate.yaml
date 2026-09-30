@@ -2,8 +2,6 @@ name: Validate fitness CLI
 
 on:
   pull_request:
-  push:
-    branches-ignore: [main]
 
 permissions:
   contents: read
@@ -28,6 +26,6 @@ jobs:
       - name: Container smoke test
         run: |
           docker build -t fitness-cli:test .
-          docker run --rm fitness-cli:test uv run python -c "import app.fitbit, app.strava, app.profile; import importlib.util; assert importlib.util.find_spec('pytest') is None"
+          docker run --rm --network none fitness-cli:test uv run python -c "import app.fitbit, app.strava, app.profile; import importlib.util; assert importlib.util.find_spec('pytest') is None"
       - name: Pre-commit
         run: uv run pre-commit run -a

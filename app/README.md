@@ -13,9 +13,6 @@ Command-line tools for Fitbit and Strava APIs.
 # Using uv (recommended)
 brew install uv
 uv sync
-
-# Or using pip
-pip install .
 ```
 
 ### Environment
