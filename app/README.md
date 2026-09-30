@@ -161,7 +161,8 @@ uv run pyright
 uv run pre-commit run -a
 ```
 
-CI also builds the production container and checks its imports without live API calls or development packages.
+CI builds the production container and checks imports with the checkout mounted at `/app`, as in production.
+Dependencies live in `/opt/venv` so the mount cannot hide them; the smoke test disables networking.
 Tests use mocked services and temporary files; no credentials or browser consent are needed.
 Python 3.14 is the minimum version and matches Docker, CI, Ruff, and type checks.
 Pre-commit 4.6.2 and the other development tools are pinned by `uv.lock`; uv 0.12.21 is pinned in Docker and CI.
