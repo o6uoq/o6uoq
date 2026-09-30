@@ -5,7 +5,7 @@ Command-line tools for Fitbit and Strava APIs.
 ## Setup
 
 ### Prerequisites
-- Python 3.13+
+- Python 3.14+
 - Fitbit/Strava API credentials
 
 ### Install
@@ -159,11 +159,13 @@ Confirm the profile contains real data and that both token uploads succeeded. Ne
 uv sync --frozen
 uv run pytest
 uv run pyright
-pre-commit run -a
+uv run pre-commit run -a
 ```
 
+CI also builds the production container and checks its imports without live API calls or development packages.
 Tests use mocked services and temporary files; no credentials or browser consent are needed.
-Python runs on 3.14 in Docker and validation CI. Local Python must satisfy the project's declared minimum of 3.13.
+Python 3.14 is the minimum version and matches Docker, CI, Ruff, and type checks.
+Pre-commit 4.6.2 and the other development tools are pinned by `uv.lock`; uv 0.12.21 is pinned in Docker and CI.
 
 ## Notes
 

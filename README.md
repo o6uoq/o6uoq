@@ -6,7 +6,6 @@ I love people, problem-solving and engineering. From industry conglomerates in t
 
 Operations, Systems, DevOps, Platform Engineer — Lead, Head, Principal, VP, CTO. I've founded and failed, built and scaled teams from 0→1, and delivered across start-ups, scale-ups, enterprises and multinationals. From data centres to cloud, containers to Kubernetes, kaizen to customers — my focus has always been effective, efficient and excellent engineering.
 
-<p>
 
 - <samp> 🚀 Scaling companies from Seed ➡️ Series D </samp><br>
 - <samp> 🤖 Software ate the world — now AI is eating software... and I want to be holding the fork </samp><br>
