@@ -6,6 +6,8 @@ WORKDIR /app
 
 # Copy dependency files and install with uv
 COPY pyproject.toml uv.lock ./
+# The workflow mounts its checkout at /app, so keep dependencies outside that mount.
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 RUN pip install uv==0.12.21 && uv sync --frozen --no-dev
 
 # Runtime commands use the installed production dependencies without adding dev tools.

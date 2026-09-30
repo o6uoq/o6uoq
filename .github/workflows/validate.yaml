@@ -26,6 +26,6 @@ jobs:
       - name: Container smoke test
         run: |
           docker build -t fitness-cli:test .
-          docker run --rm --network none fitness-cli:test uv run python -c "import app.fitbit, app.strava, app.profile; import importlib.util; assert importlib.util.find_spec('pytest') is None"
+          docker run --rm --network none -v "${{ github.workspace }}:/app" fitness-cli:test uv run python -c "import app.fitbit, app.strava, app.profile; import importlib.util; assert importlib.util.find_spec('pytest') is None"
       - name: Pre-commit
         run: uv run pre-commit run -a
