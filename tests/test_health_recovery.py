@@ -99,7 +99,8 @@ def test_strava_cli_refresh_failure_is_nonzero(monkeypatch):
     assert error.value.code == 1
 
 
-def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, tmp_path):
+@pytest.mark.parametrize("failed_command", ["fitbit-steps", "fitbit-sleep"])
+def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, tmp_path, failed_command):
     from app.profile import update_profile
 
     readme = tmp_path / "README.md"
@@ -111,16 +112,24 @@ def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, 
 
     def run(command, **kwargs):
         calls.append(command[-1])
-        if command[-1].startswith("fitbit-"):
+        if command[-1] == failed_command:
             return subprocess.CompletedProcess(command, 1, "", "unavailable")
-        return subprocess.CompletedProcess(command, 0, "Ride & | \\ trail\n1h 02m\n", "")
+        data = {
+            "fitbit-steps": "123\n",
+            "fitbit-sleep": "7h 12m\n",
+            "strava-latest-workout": "Ride & | \\ trail\n1h 02m\n",
+        }
+        return subprocess.CompletedProcess(command, 0, data[command[-1]], "")
 
     monkeypatch.setattr(subprocess, "run", run)
     assert update_profile(readme) == 1
     result = readme.read_text()
     assert "**old** steps" in result
-    assert "Last recorded:" in result
-    assert "Update unavailable" in result
+    assert (
+        result.splitlines()[0] == "- <samp> 🚶🏼‍♂️ Today I have walked **old** steps and slept for **old** </samp><br>"
+    )
+    assert "Last recorded:" not in result
+    assert "Update unavailable" not in result
     assert "Ride & | \\ trail" in result
     assert result.endswith("Other text\n")
     assert calls.count("strava-latest-workout") == 1
