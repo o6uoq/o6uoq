@@ -2,6 +2,7 @@ name: Validate fitness CLI
 
 on:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,7 +18,7 @@ jobs:
           python-version: '3.14'
       - name: Install locked tools
         run: |
-          python -m pip install uv==0.12.21
+          python -m pip install uv==0.12.22
           uv sync --frozen
       - name: Regression tests
         run: uv run pytest
@@ -27,5 +28,12 @@ jobs:
         run: |
           docker build -t fitness-cli:test .
           docker run --rm --network none -v "${{ github.workspace }}:/app" fitness-cli:test uv run python -c "import app.fitbit, app.strava, app.profile; import importlib.util; assert importlib.util.find_spec('pytest') is None"
+          docker run --rm --init --shm-size=256m --network none fitness-cli:test uv run python -c "from camoufox.sync_api import Camoufox; c = Camoufox(headless='virtual', os='linux'); b = c.__enter__(); p = b.new_page(); p.goto('about:blank'); c.__exit__(None, None, None)"
+      - name: Verify Strava website on a GitHub runner
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          STRAVA_LOGIN: ${{ secrets.STRAVA_LOGIN }}
+          STRAVA_PASSWORD: ${{ secrets.STRAVA_PASSWORD }}
+        run: docker run --rm --init --shm-size=256m -e STRAVA_LOGIN -e STRAVA_PASSWORD fitness-cli:test uv run python -m app.strava strava-latest-workout
       - name: Pre-commit
         run: uv run pre-commit run -a
