@@ -132,8 +132,8 @@ This depends on Strava's current login-page implementation; a layout change can 
 The manual `Validate fitness CLI` workflow also checks a real Strava login on a GitHub runner.
 Its Strava check only reads your activities; it does not refresh Fitbit or write the profile.
 PR validation stays offline and does not receive login credentials.
-Both workflows reuse GitHub build-layer caches for the installed browser and dependencies.
-Caches contain build assets, not credentials or signed-in browser sessions.
+Browser, addon and model assets are installed in the image; normal runtime does not download them.
+Hosted Buildx caching was measured and removed: its warm run was slower than the direct Docker build.
 
 ### Verify recovery
 
