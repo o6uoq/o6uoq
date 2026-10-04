@@ -203,7 +203,7 @@ def test_authentication_error_redacts_code(monkeypatch, capsys, manager):
     assert "invalid_grant" in output.err
 
 
-@pytest.mark.parametrize("module,command", [("app.fitbit", "fitbit-steps"), ("app.strava", "strava-latest-workout")])
+@pytest.mark.parametrize("module,command", [("app.fitbit", "fitbit-steps")])
 def test_cli_http_failure_exit_and_safe_diagnostic(monkeypatch, capsys, module, command):
     import runpy
     import sys

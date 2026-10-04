@@ -47,16 +47,6 @@ jobs:
         FITBIT_CLIENT_ID=${{ secrets.FITBIT_CLIENT_ID }}
         FITBIT_CLIENT_SECRET=${{ secrets.FITBIT_CLIENT_SECRET }}
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
-        ### Strava environment variables
-        STRAVA_AUTH_URI=${{ vars.STRAVA_AUTH_URI }}
-        STRAVA_EXPIRES_AT=${{ vars.STRAVA_EXPIRES_AT }}
-        STRAVA_REDIRECT_URI=${{ vars.STRAVA_REDIRECT_URI }}
-        STRAVA_TOKEN_REQUEST_URI=${{ vars.STRAVA_TOKEN_REQUEST_URI }}
-        ### Strava secrets
-        STRAVA_ACCESS_TOKEN=${{ secrets.STRAVA_ACCESS_TOKEN }}
-        STRAVA_CLIENT_ID=${{ secrets.STRAVA_CLIENT_ID }}
-        STRAVA_CLIENT_SECRET=${{ secrets.STRAVA_CLIENT_SECRET }}
-        STRAVA_REFRESH_TOKEN=${{ secrets.STRAVA_REFRESH_TOKEN }}
         EOF
 
     - name: Find latest token artifacts independently
@@ -70,14 +60,14 @@ jobs:
             owner: context.repo.owner, repo: context.repo.repo, per_page: 100
           })) {
             for (const artifact of response.data) {
-              for (const service of ['fitbit', 'strava']) {
+              for (const service of ['fitbit']) {
                 if (artifact.name === `${service}-tokens` && !artifact.expired && artifact.workflow_run?.head_branch === 'main' && !found.has(service)) {
                   core.setOutput(service, artifact.workflow_run.id);
                   found.add(service);
                 }
               }
             }
-            if (found.size === 2) break;
+            if (found.size === 1) break;
           }
 
     - name: Download Fitbit tokens
@@ -90,18 +80,8 @@ jobs:
         run-id: ${{ steps.tokens.outputs.fitbit }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Download Strava tokens
-      id: download_strava
-      uses: actions/download-artifact@v8
-      if: steps.tokens.outputs.strava != ''
-      continue-on-error: true
-      with:
-        name: strava-tokens
-        run-id: ${{ steps.tokens.outputs.strava }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Report token download failures
-      if: steps.download_fitbit.outcome == 'failure' || steps.download_strava.outcome == 'failure'
+      if: steps.download_fitbit.outcome == 'failure'
       run: echo "::warning::Token artifact download failed; falling back to repository secrets."
 
     - name: Update .env file with latest tokens data
@@ -120,20 +100,6 @@ jobs:
           echo "[WARN] fitbit_tokens.json not found, skipping .env update."
         fi
 
-        if [ -f strava_tokens.json ]; then
-          STRAVA_ACCESS_TOKEN=$(jq -r '.STRAVA_ACCESS_TOKEN' strava_tokens.json)
-          STRAVA_REFRESH_TOKEN=$(jq -r '.STRAVA_REFRESH_TOKEN' strava_tokens.json)
-          STRAVA_EXPIRES_AT=$(jq -r '.STRAVA_EXPIRES_AT' strava_tokens.json)
-
-          {
-            printf '%s\n' "STRAVA_ACCESS_TOKEN=$STRAVA_ACCESS_TOKEN"
-            printf '%s\n' "STRAVA_REFRESH_TOKEN=$STRAVA_REFRESH_TOKEN"
-            printf '%s\n' "STRAVA_EXPIRES_AT=$STRAVA_EXPIRES_AT"
-          } >> .env
-        else
-          echo "[WARN] strava_tokens.json not found, skipping .env update."
-        fi
-
     - name: Build Docker image
       run: docker build -t fitness-cli .
 
@@ -142,15 +108,13 @@ jobs:
       run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.fitbit fitbit-tokens
       continue-on-error: true
 
-    - name: Run Strava tokens
-      id: strava_tokens
-      continue-on-error: true
-      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.strava strava-tokens
-
     - name: Update README from successful service responses
       id: profile
       continue-on-error: true
-      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.profile
+      env:
+        STRAVA_LOGIN: ${{ secrets.STRAVA_LOGIN }}
+        STRAVA_PASSWORD: ${{ secrets.STRAVA_PASSWORD }}
+      run: docker run --rm --init --shm-size=256m --env-file .env -e STRAVA_LOGIN -e STRAVA_PASSWORD -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.profile
 
     - name: Commit and push changes
       run: |
@@ -165,13 +129,12 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Report service failures
-      if: always() && (steps.fitbit_tokens.outcome == 'failure' || steps.strava_tokens.outcome == 'failure' || steps.profile.outcome == 'failure')
+      if: always() && (steps.fitbit_tokens.outcome == 'failure' || steps.profile.outcome == 'failure')
       run: |
         echo "::error::Health update failed. Existing data was preserved for unavailable services."
         {
           echo "## Health update needs attention"
           echo "- Fitbit refresh: ${{ steps.fitbit_tokens.outcome }}"
-          echo "- Strava refresh: ${{ steps.strava_tokens.outcome }}"
           echo "- Profile fetch: ${{ steps.profile.outcome }}"
           echo "See app/README.md for diagnosis and recovery."
         } >> "$GITHUB_STEP_SUMMARY"
@@ -183,12 +146,4 @@ jobs:
       with:
         name: fitbit-tokens
         path: fitbit_tokens.json
-        if-no-files-found: warn
-
-    - name: Upload Strava Tokens to GitHub Artifacts
-      if: always() && steps.strava_tokens.outcome == 'success'
-      uses: actions/upload-artifact@v7
-      with:
-        name: strava-tokens
-        path: strava_tokens.json
         if-no-files-found: warn

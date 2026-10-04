@@ -1,12 +1,13 @@
 # Fitness CLI Tools
 
-Command-line tools for Fitbit and Strava APIs.
+Command-line tools for the Fitbit API and your signed-in Strava activity list.
 
 ## Setup
 
 ### Prerequisites
 - Python 3.14+
-- Fitbit/Strava API credentials
+- Fitbit API credentials
+- Strava email/password login and Linux Docker
 
 ### Install
 ```bash
@@ -16,7 +17,7 @@ uv sync
 ```
 
 ### Environment
-Create `.env` file with your API credentials:
+Create `.env` with your credentials:
 
 ```bash
 # Fitbit - Required
@@ -24,10 +25,9 @@ FITBIT_CLIENT_ID=your_id
 FITBIT_CLIENT_SECRET=your_secret
 FITBIT_REDIRECT_URI=https://localhost
 
-# Strava - Required
-STRAVA_CLIENT_ID=your_id
-STRAVA_CLIENT_SECRET=your_secret
-STRAVA_REDIRECT_URI=https://localhost
+# Strava website - Required for workouts
+STRAVA_LOGIN=your_email
+STRAVA_PASSWORD=your_password
 ```
 
 **Note:** Additional variables (ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_AT) are auto-generated during OAuth authentication and don't need to be declared manually.
@@ -50,16 +50,12 @@ python -m app.fitbit fitbit-tokens-refresh
 
 ### Strava
 ```bash
-# Authenticate
-python -m app.strava strava-auth
-
-# Get data
-python -m app.strava strava-latest-workout
-
-# Token management
-python -m app.strava strava-tokens
-python -m app.strava strava-tokens-refresh
+# Fetch your newest workout in Linux Docker; output is name then elapsed duration.
+docker run --rm --init --shm-size=256m --env-file .env fitness-cli uv run python -m app.strava strava-latest-workout
 ```
+
+Your Strava account must accept password login. No OAuth application is needed for workouts.
+Legacy `strava-auth`, `strava-tokens` and `strava-tokens-refresh` commands remain available for API use.
 
 ## Docker
 
@@ -70,7 +66,7 @@ docker build -t fitness-cli .
 docker run -it --env-file .env -v $(pwd):/app fitness-cli /bin/sh
 
 # Direct command execution
-docker run --env-file .env -v $(pwd):/app fitness-cli python -m app.fitbit fitbit-steps
+docker run --env-file .env -v $(pwd):/app fitness-cli uv run python -m app.fitbit fitbit-steps
 ```
 
 **Note:** The `-v $(pwd):/app` volume mount is required when running commands that update files (like authentication), otherwise changes won't persist to your host machine.
@@ -86,13 +82,13 @@ docker run --env-file .env -v $(pwd):/app fitness-cli python -m app.fitbit fitbi
 ## GitHub Actions and recovery
 
 The workflow runs every four hours and on pushes to main. PRs run offline validation.
-It refreshes both services, fetches Strava once, and updates each profile line only when that service succeeds.
+It refreshes Fitbit tokens, fetches Strava once through its website, and updates each profile line only when that service succeeds.
 A failed service keeps previously retrieved data and makes the run fail after successful updates are published.
 Strava failures show “Workouts unavailable” if no workout is saved.
 A saved workout stays visible with a short notice that Strava updates are unavailable.
 An unavailable Fitbit line can describe a previous day; it is not today's measurement.
 
-Each service restores its newest unexpired token artifact independently. A failed data fetch does not discard successfully rotated tokens.
+Fitbit restores its newest unexpired token artifact. A failed data fetch does not discard successfully rotated tokens.
 Runs are serialised because refresh tokens rotate. Do not cancel a run during rotation.
 Token artifacts contain credentials; do not download or share them casually.
 
@@ -106,39 +102,35 @@ An expired access token normally refreshes automatically. An `invalid_grant` ref
 
 The helper requires `uv`, authenticated `gh`, and `.env` at the repository root.
 It accepts an authorisation code silently, updates local tokens, sends secrets through stdin, and dispatches `main.yaml` with `skip_artifact=true`.
-This bypasses previous artifacts for both services on the recovery run.
+This bypasses previous Fitbit artifacts on the recovery run.
 
 ### Strava
 
-Inspect the structured error before deciding to reauthorise:
-
-- `Application / Status / Inactive`: inspect the application at https://www.strava.com/settings/api. Token refresh does not reactivate an application.
-- Access or refresh authorisation failure: reauthorise and confirm the granted `activity:read` scope. Only Me activities require `activity:read_all`; request broader scope only if needed.
-- Timeout or server failure: keep previous data and retry later.
-- Successful empty activity list: the profile shows “No workouts yet.”
-
-After restoring application access, if fresh authorisation is needed:
+Set the repository secrets `STRAVA_LOGIN` and `STRAVA_PASSWORD` from your local `.env` through stdin:
 
 ```bash
-uv run python -m app.strava strava-auth
 uv run python - <<'PYTHON'
 import subprocess
 from dotenv import dotenv_values
 values = dotenv_values('.env')
-for key in ('STRAVA_ACCESS_TOKEN', 'STRAVA_REFRESH_TOKEN'):
+for key in ('STRAVA_LOGIN', 'STRAVA_PASSWORD'):
     value = values.get(key)
     if not value:
         raise SystemExit(f'Missing {key}')
     subprocess.run(['gh', 'secret', 'set', key], input=value, text=True, check=True)
-expiry = values.get('STRAVA_EXPIRES_AT')
-if not expiry:
-    raise SystemExit('Missing STRAVA_EXPIRES_AT')
-subprocess.run(['gh', 'variable', 'set', 'STRAVA_EXPIRES_AT', '--body', expiry], check=True)
 PYTHON
-gh workflow run main.yaml -f skip_artifact=true
 ```
 
-Strava references: [authentication](https://developers.strava.com/docs/authentication/) and [activities](https://developers.strava.com/docs/reference/#api-Activities-getLoggedInAthleteActivities).
+The Ubuntu container runs Python 3.14.8, Camoufox 0.5.7 and the checksum-verified browser 156.0.1-beta.34.
+It runs a virtual display inside Linux, selects Strava's existing password form and uses the site's own submission handler.
+Each run creates and removes its own browser profile. No desktop browser or saved session is required.
+The workout comes from your own My Activities response and uses `elapsed_time_raw`, not moving time.
+Website errors or changed response fields preserve the saved workout and fail the workflow.
+This depends on Strava's current login-page implementation; a layout change can require an update.
+
+The manual `Validate fitness CLI` workflow also checks a real Strava login on a GitHub runner.
+Its Strava check only reads your activities; it does not refresh Fitbit or write the profile.
+PR validation stays offline and does not receive login credentials.
 
 ### Verify recovery
 
@@ -149,8 +141,8 @@ gh run watch <run-id> --exit-status
 gh run view <run-id> --log-failed
 ```
 
-Check data-fetch errors as well as token refresh. A successful refresh alone does not prove activity access.
-Confirm the profile contains real data and that both token uploads succeeded. Never paste raw OAuth error bodies into logs or issues.
+Check data-fetch errors as well as Fitbit token refresh. A successful refresh alone does not prove activity access.
+Confirm the profile contains real data and the Fitbit token upload succeeded. Never paste raw OAuth error bodies into logs or issues.
 
 ## Development
 
@@ -165,7 +157,7 @@ CI builds the production container and checks imports with the checkout mounted 
 Dependencies live in `/opt/venv` so the mount cannot hide them; the smoke test disables networking.
 Tests use mocked services and temporary files; no credentials or browser consent are needed.
 Python 3.14 is the minimum version and matches Docker, CI, Ruff, and type checks.
-Pre-commit 4.6.2 and the other development tools are pinned by `uv.lock`; uv 0.12.21 is pinned in Docker and CI.
+Pre-commit 4.6.2 and the other development tools are pinned by `uv.lock`; uv 0.12.22 is pinned in Docker and CI.
 
 ## Notes
 
