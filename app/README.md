@@ -94,15 +94,17 @@ Token artifacts contain credentials; do not download or share them casually.
 
 ### Fitbit
 
-An expired access token normally refreshes automatically. An `invalid_grant` refresh error requires new browser consent:
+- Expired access token: the workflow refreshes it automatically.
+- `invalid_grant`: reauthorise once with browser consent:
 
 ```bash
 ./scripts/refresh-fitbit-secrets.sh --dispatch
 ```
 
-The helper requires `uv`, authenticated `gh`, and `.env` at the repository root.
-It accepts an authorisation code silently, updates local tokens, sends secrets through stdin, and dispatches `main.yaml` with `skip_artifact=true`.
-This bypasses previous Fitbit artifacts on the recovery run.
+Requires `uv`, authenticated `gh`, and root `.env`. Approve **activity/sleep** and enter the redirect's `code` at the hidden prompt; a `localhost` connection error is expected.
+The helper updates local tokens, syncs GitHub secrets/expiry and starts `main.yaml` on `main` with `skip_artifact=true`.
+That recovery run bypasses cached Fitbit tokens; later runs use the newly saved token artifact.
+Success means fresh steps/sleep in the profile **and** a saved Fitbit token artifact; check Strava separately if the run remains red.
 
 ### Strava
 
