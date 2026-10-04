@@ -1,4 +1,4 @@
-name: GitHub Profile README Updater Workflow
+name: Update profile health
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       skip_artifact:
-        description: 'Skip artifact download and use GitHub Secrets directly (use when manually refreshing tokens)'
+        description: 'Use fresh Fitbit secrets; bypass cached tokens for this recovery run'
         required: false
         default: false
         type: boolean
@@ -49,7 +49,7 @@ jobs:
         FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
         EOF
 
-    - name: Find latest token artifacts independently
+    - name: Find latest Fitbit tokens
       id: tokens
       if: inputs.skip_artifact != true
       uses: actions/github-script@v9
@@ -84,7 +84,7 @@ jobs:
       if: steps.download_fitbit.outcome == 'failure'
       run: echo "::warning::Token artifact download failed; falling back to repository secrets."
 
-    - name: Update .env file with latest tokens data
+    - name: Restore Fitbit tokens
       run: |
         if [ -f fitbit_tokens.json ]; then
           FITBIT_ACCESS_TOKEN=$(jq -r '.FITBIT_ACCESS_TOKEN' fitbit_tokens.json)
@@ -103,12 +103,12 @@ jobs:
     - name: Build Docker image
       run: docker build -t fitness-cli .
 
-    - name: Run Fitbit tokens
+    - name: Refresh Fitbit tokens
       id: fitbit_tokens
       run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.fitbit fitbit-tokens
       continue-on-error: true
 
-    - name: Update README from successful service responses
+    - name: Update profile from available services
       id: profile
       continue-on-error: true
       env:
@@ -131,16 +131,20 @@ jobs:
     - name: Report service failures
       if: always() && (steps.fitbit_tokens.outcome == 'failure' || steps.profile.outcome == 'failure')
       run: |
-        echo "::error::Health update failed. Existing data was preserved for unavailable services."
+        echo "::error::Health update incomplete; failed services retain previous data."
         {
-          echo "## Health update needs attention"
-          echo "- Fitbit refresh: ${{ steps.fitbit_tokens.outcome }}"
-          echo "- Profile fetch: ${{ steps.profile.outcome }}"
-          echo "See app/README.md for diagnosis and recovery."
+          echo "## Health update"
+          echo "- Fitbit token refresh: ${{ steps.fitbit_tokens.outcome }}"
+          echo "- Profile update: ${{ steps.profile.outcome }}"
+          if [ "${{ steps.fitbit_tokens.outcome }}" = "failure" ]; then
+            echo ''
+            echo 'Fitbit `invalid_grant`: run `./scripts/refresh-fitbit-secrets.sh --dispatch` locally and complete browser consent.'
+          fi
+          echo 'Other errors: check the failed service log. See app/README.md.'
         } >> "$GITHUB_STEP_SUMMARY"
         exit 1
 
-    - name: Upload Fitbit Tokens to GitHub Artifacts
+    - name: Save Fitbit tokens
       if: always() && steps.fitbit_tokens.outcome == 'success'
       uses: actions/upload-artifact@v7
       with:
