@@ -25,8 +25,13 @@ RUN case "$TARGETARCH" in \
     && chmod -R 755 /opt/camoufox \
     && rm /tmp/camoufox.zip
 ENV CAMOUFOX_EXECUTABLE_PATH=/opt/camoufox/camoufox-bin
-# Install fingerprint/addon assets now, outside the mounted checkout.
-RUN /opt/venv/bin/python -c "from pathlib import Path; from camoufox.utils import launch_options; from camoufox.addons import get_addon_path; launch_options(headless=True, os='linux'); assert Path(get_addon_path('UBO'), 'manifest.json').is_file()"
+# Pin the same addon used by the verified login instead of fetching latest.xpi.
+RUN curl -fsSL "https://addons.mozilla.org/firefox/downloads/file/5034826/ublock_origin-1.75.0.xpi" -o /tmp/ubo.xpi \
+    && printf '%s  %s\n' 5b74415860456370644bd80f16125e865b0e6c356bb5dfcfb84069967eaa5287 /tmp/ubo.xpi | sha256sum -c - \
+    && /opt/venv/bin/python -c "from zipfile import ZipFile; from camoufox.addons import get_addon_path; ZipFile('/tmp/ubo.xpi').extractall(get_addon_path('UBO'))" \
+    && rm /tmp/ubo.xpi
+# Warm and verify the SDK's checksum-pinned model outside the mounted checkout.
+RUN /opt/venv/bin/python -c "import json; from pathlib import Path; from camoufox.utils import launch_options; from camoufox.addons import get_addon_path; from camoufox.fpgen_model import is_pinned; launch_options(headless=True, os='linux'); assert is_pinned(); assert json.loads(Path(get_addon_path('UBO'), 'manifest.json').read_text())['version'] == '1.75.0'"
 
 # Runtime commands use the installed production dependencies without adding dev tools.
 ENV UV_NO_SYNC=1

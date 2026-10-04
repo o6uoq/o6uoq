@@ -122,6 +122,7 @@ PYTHON
 ```
 
 The Ubuntu container runs Python 3.14.8, Camoufox 0.5.7 and the checksum-verified browser 156.0.1-beta.34.
+The browser extension is pinned to uBlock Origin 1.75.0 with its Mozilla checksum; the SDK verifies its fingerprint model.
 It runs a virtual display inside Linux, selects Strava's existing password form and uses the site's own submission handler.
 Each run creates and removes its own browser profile. No desktop browser or saved session is required.
 The workout comes from your own My Activities response and uses `elapsed_time_raw`, not moving time.
@@ -131,6 +132,8 @@ This depends on Strava's current login-page implementation; a layout change can 
 The manual `Validate fitness CLI` workflow also checks a real Strava login on a GitHub runner.
 Its Strava check only reads your activities; it does not refresh Fitbit or write the profile.
 PR validation stays offline and does not receive login credentials.
+Both workflows reuse GitHub build-layer caches for the installed browser and dependencies.
+Caches contain build assets, not credentials or signed-in browser sessions.
 
 ### Verify recovery
 
