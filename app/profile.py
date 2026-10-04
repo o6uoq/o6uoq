@@ -37,10 +37,6 @@ def mark_unavailable(text: str, prefix: str) -> str:
                     line = prefix + "Workouts unavailable. </samp><br>"
                 else:
                     line = line.removesuffix(note).removesuffix(strava_note) + strava_note
-            else:
-                line = line.replace("Today I have walked ", "Last recorded: I walked ")
-                if not line.endswith(note):
-                    line += note
             return replace_line(text, prefix, line)
     return text
 
@@ -61,7 +57,6 @@ def update_profile(path: Path) -> int:
     except (RuntimeError, ValueError, subprocess.TimeoutExpired) as error:
         print(f"Fitbit update failed: {error}", file=sys.stderr)
         failed = True
-        text = mark_unavailable(text, "- <samp> 🚶🏼‍♂️ ")
     try:
         workout = fetch("strava", "strava-latest-workout")
         if len(workout) != 2 or not re.fullmatch(r"(?:\d+h )?\d+m", workout[1]):
