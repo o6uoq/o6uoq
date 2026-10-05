@@ -89,7 +89,7 @@ A saved workout stays visible with a short notice that Strava updates are unavai
 An unavailable Fitbit line can describe a previous day; it is not today's measurement.
 
 Fitbit compares artifact creation times across all pages and restores the newest unexpired main-branch token artifact by its exact ID.
-This also handles reruns that upload multiple artifacts with the same name and run ID. A failed data fetch does not discard successfully rotated tokens.
+The direct artifact download also handles reruns whose artifacts are missing from GitHub's run-specific listing. A failed data fetch does not discard successfully rotated tokens.
 Runs are serialised because refresh tokens rotate. Do not cancel a run during rotation.
 Token artifacts contain credentials; do not download or share them casually.
 

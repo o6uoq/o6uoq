@@ -68,19 +68,19 @@ jobs:
             }
           }
           if (latest) {
-            core.setOutput('fitbit', latest.workflow_run.id);
             core.setOutput('fitbit_artifact', latest.id);
           }
 
     - name: Download Fitbit tokens
       id: download_fitbit
-      uses: actions/download-artifact@v8
-      if: steps.tokens.outputs.fitbit != ''
+      if: steps.tokens.outputs.fitbit_artifact != ''
       continue-on-error: true
-      with:
-        artifact-ids: ${{ steps.tokens.outputs.fitbit_artifact }}
-        run-id: ${{ steps.tokens.outputs.fitbit }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh api "repos/${{ github.repository }}/actions/artifacts/${{ steps.tokens.outputs.fitbit_artifact }}/zip" > fitbit_tokens.zip
+        unzip -oq fitbit_tokens.zip
+        rm fitbit_tokens.zip
 
     - name: Report token download failures
       if: steps.download_fitbit.outcome == 'failure'
