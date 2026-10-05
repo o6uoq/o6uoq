@@ -1,7 +1,9 @@
 """Exercise the workflow's JavaScript against reordered artifact pages."""
 
 import json
+import os
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -56,7 +58,7 @@ def test_newest_rotation_wins_even_when_older_artifact_has_higher_id(separate_pa
     older = artifact(11355535164, "2026-10-05T15:26:03Z")
     newer = artifact(11354608822, "2026-10-05T15:28:53Z")
     pages = [[older], [newer]] if separate_pages else [[older, newer]]
-    assert select(pages) == {"fitbit": 100, "fitbit_artifact": 11354608822}
+    assert select(pages) == {"fitbit_artifact": 11354608822}
 
 
 def test_ineligible_artifacts_are_excluded_and_no_match_uses_secrets():
@@ -67,14 +69,31 @@ def test_ineligible_artifacts_are_excluded_and_no_match_uses_secrets():
     ]
     assert select([invalid]) == {}
     valid = artifact(4, "2026-10-05T15:00:00Z", run=99)
-    assert select([invalid, [valid]]) == {"fitbit": 99, "fitbit_artifact": 4}
+    assert select([invalid, [valid]]) == {"fitbit_artifact": 4}
 
 
-def test_download_uses_selected_id_and_recovery_can_bypass_artifacts():
+def test_download_uses_direct_id_and_extracts_tokens(tmp_path):
     steps = yaml.safe_load(WORKFLOW.read_text())["jobs"]["build-and-run"]["steps"]
     selection = next(step for step in steps if step.get("id") == "tokens")
     download = next(step for step in steps if step.get("id") == "download_fitbit")
     assert selection["if"] == "inputs.skip_artifact != true"
-    assert download["with"]["artifact-ids"] == "${{ steps.tokens.outputs.fitbit_artifact }}"
-    assert download["with"]["run-id"] == "${{ steps.tokens.outputs.fitbit }}"
-    assert "name" not in download["with"]
+    assert download["if"] == "steps.tokens.outputs.fitbit_artifact != ''"
+    assert download["env"]["GH_TOKEN"] == "${{ secrets.GITHUB_TOKEN }}"
+    script = download["run"].replace("${{ github.repository }}", "test/profile")
+    script = script.replace("${{ steps.tokens.outputs.fitbit_artifact }}", "11354608822")
+    with zipfile.ZipFile(tmp_path / "fixture.zip", "w") as archive:
+        archive.writestr("fitbit_tokens.json", '{"test": true}')
+    gh = tmp_path / "gh"
+    gh.write_text('#!/bin/sh\nprintf "%s" "$*" > called.txt\ncat fixture.zip\n')
+    gh.chmod(0o755)
+    subprocess.run(
+        ["bash", "-e", "-c", script],
+        cwd=tmp_path,
+        env={**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"},
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert (tmp_path / "called.txt").read_text() == ("api repos/test/profile/actions/artifacts/11354608822/zip")
+    assert json.loads((tmp_path / "fitbit_tokens.json").read_text()) == {"test": True}
+    assert not (tmp_path / "fitbit_tokens.zip").exists()
