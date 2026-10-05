@@ -55,19 +55,21 @@ jobs:
       uses: actions/github-script@v9
       with:
         script: |
-          const found = new Set();
+          // Artifact list order and IDs do not identify the latest rotation.
+          // Reruns can upload multiple artifacts with the same name and run ID.
+          let latest;
           for await (const response of github.paginate.iterator(github.rest.actions.listArtifactsForRepo, {
             owner: context.repo.owner, repo: context.repo.repo, per_page: 100
           })) {
             for (const artifact of response.data) {
-              for (const service of ['fitbit']) {
-                if (artifact.name === `${service}-tokens` && !artifact.expired && artifact.workflow_run?.head_branch === 'main' && !found.has(service)) {
-                  core.setOutput(service, artifact.workflow_run.id);
-                  found.add(service);
-                }
+              if (artifact.name === 'fitbit-tokens' && !artifact.expired && artifact.workflow_run?.head_branch === 'main') {
+                if (!latest || artifact.created_at > latest.created_at) latest = artifact;
               }
             }
-            if (found.size === 1) break;
+          }
+          if (latest) {
+            core.setOutput('fitbit', latest.workflow_run.id);
+            core.setOutput('fitbit_artifact', latest.id);
           }
 
     - name: Download Fitbit tokens
@@ -76,7 +78,7 @@ jobs:
       if: steps.tokens.outputs.fitbit != ''
       continue-on-error: true
       with:
-        name: fitbit-tokens
+        artifact-ids: ${{ steps.tokens.outputs.fitbit_artifact }}
         run-id: ${{ steps.tokens.outputs.fitbit }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
 

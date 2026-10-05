@@ -88,7 +88,8 @@ Strava failures show “Workouts unavailable” if no workout is saved.
 A saved workout stays visible with a short notice that Strava updates are unavailable.
 An unavailable Fitbit line can describe a previous day; it is not today's measurement.
 
-Fitbit restores its newest unexpired token artifact. A failed data fetch does not discard successfully rotated tokens.
+Fitbit compares artifact creation times across all pages and restores the newest unexpired main-branch token artifact by its exact ID.
+This also handles reruns that upload multiple artifacts with the same name and run ID. A failed data fetch does not discard successfully rotated tokens.
 Runs are serialised because refresh tokens rotate. Do not cancel a run during rotation.
 Token artifacts contain credentials; do not download or share them casually.
 
@@ -152,6 +153,7 @@ Confirm the profile contains real data and the Fitbit token upload succeeded. Ne
 ## Development
 
 ```bash
+# Node.js is also required for the workflow JavaScript regression tests.
 uv sync --frozen
 uv run pytest
 uv run pyright
