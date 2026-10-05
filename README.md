@@ -9,7 +9,7 @@ Operations, Systems, DevOps, Platform Engineer — Lead, Head, Principal, VP, CT
 
 - <samp> 🚀 Scaling companies from Seed ➡️ Series D </samp><br>
 - <samp> 🤖 Software ate the world — now AI is eating software... and I want to be holding the fork </samp><br>
-- <samp> 🚶🏼‍♂️ Today I have walked **7206** steps and slept for **6h 54m** </samp><br>
-- <samp> 🏋🏼‍♂️ My last workout was **Lunch Workout** for **53m** </samp><br>
+- <samp> 🚶🏼‍♂️ Today I have walked **15793** steps and slept for **6h 54m** </samp><br>
+- <samp> 🏋🏼‍♂️ My last workout was **Lunch Workout** for **53m** </samp><br> <sub>Strava updates are unavailable right now</sub>
 - <samp> ⚡ Fun fact: I was the [Queensland](https://en.wikipedia.org/wiki/Queensland) [Doom II](https://en.wikipedia.org/wiki/Doom_II) champion in the 1990's
 - <samp> 🇦🇺 Made in Australia </samp><br>
