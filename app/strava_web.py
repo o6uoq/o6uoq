@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from camoufox.sync_api import Camoufox
 from dotenv import load_dotenv
 from playwright.sync_api import Error as BrowserError
+from playwright.sync_api import Request, Response
 from playwright.sync_api import TimeoutError as BrowserTimeout
 
 
@@ -52,6 +53,20 @@ def latest_workout() -> tuple[str, int]:
     if not login or not password:
         raise StravaWebsiteError("Set STRAVA_LOGIN and STRAVA_PASSWORD")
     stage = "browser startup"
+    started = time.monotonic()
+    session_requested = False
+    session_status: int | None = None
+
+    def observe_request(request: Request) -> None:
+        nonlocal session_requested
+        if urlsplit(request.url).path == "/session":
+            session_requested = True
+
+    def observe_response(response: Response) -> None:
+        nonlocal session_status
+        if urlsplit(response.url).path == "/session":
+            session_status = response.status
+
     try:
         with (
             TemporaryDirectory(prefix="strava-") as profile,
@@ -107,9 +122,12 @@ def latest_workout() -> tuple[str, int]:
                 raise StravaWebsiteError("Strava login layout changed")
             field = page.locator("input[type=password]:visible")
             field.press_sequentially(password, delay=90)
-            stage = "password submission"
+            page.on("request", observe_request)
+            page.on("response", observe_response)
+            stage = "password form submission"
             with page.expect_response(lambda r: urlsplit(r.url).path == "/session") as submitted:
                 field.locator("xpath=ancestor::form").locator("button[type=submit]").click()
+                stage = "login response"
             response = submitted.value
             if response.status != 200:
                 raise StravaWebsiteError(f"Strava login returned HTTP {response.status}")
@@ -124,6 +142,12 @@ def latest_workout() -> tuple[str, int]:
             if activities.status != 200:
                 raise StravaWebsiteError(f"Strava activities returned HTTP {activities.status}")
             return workout_from_training(activities.json())
-    except BrowserError:
+    except BrowserError as error:
         # Playwright exceptions can include the values entered into form fields.
-        raise StravaWebsiteError(f"Strava website failed during {stage}") from None
+        kind = "timeout" if isinstance(error, BrowserTimeout) else "browser error"
+        elapsed = time.monotonic() - started
+        raise StravaWebsiteError(
+            f"Strava website {kind} during {stage} after {elapsed:.1f}s "
+            f"(session requested: {'yes' if session_requested else 'no'}; "
+            f"session HTTP: {session_status if session_status is not None else 'none'})"
+        ) from None
