@@ -145,13 +145,19 @@ def test_login_failures_report_safe_stage_and_network_metadata(
 
     def click():
         if requested:
-            callbacks["request"](Mock(url="https://www.strava.com/session?private-test-password"))
+            callbacks["request"](Mock(method="POST", url="https://www.strava.com/session?private-test-password"))
         if status is not None:
-            callbacks["response"](Mock(url="https://www.strava.com/session", status=status))
+            callbacks["response"](
+                Mock(request=Mock(method="POST", url="https://www.strava.com/session"), status=status)
+            )
         if failure_stage == "password form submission":
             raise failure
 
-    page.locator.return_value.locator.return_value.locator.return_value.click.side_effect = click
+    button = page.locator.return_value.locator.return_value.locator.return_value
+    button.count.return_value = 1
+    button.is_visible.return_value = True
+    button.is_enabled.return_value = False
+    button.click.side_effect = click
     if failure_stage == "login response":
         page.expect_response.return_value.__exit__.side_effect = failure
     with pytest.raises(StravaWebsiteError) as caught:
@@ -164,9 +170,11 @@ def test_login_failures_report_safe_stage_and_network_metadata(
     assert "private-test-password" not in message
     assert "private-login" not in message
     assert caught.value.__suppress_context__
+    assert f"submit: {'disabled' if failure_stage == 'password form submission' else 'unknown'}" in message
 
 
-def test_successful_website_fetch_with_diagnostics_preserves_workout(monkeypatch):
+@pytest.mark.parametrize("login_status", [200, 403])
+def test_website_fetch_preserves_success_and_reports_rejection(monkeypatch, login_status):
     from unittest.mock import MagicMock, Mock
 
     from app import strava_web
@@ -179,7 +187,9 @@ def test_successful_website_fetch_with_diagnostics_preserves_workout(monkeypatch
     browser = MagicMock()
     browser.__enter__.return_value.new_page.return_value = page
     monkeypatch.setattr(strava_web, "Camoufox", lambda **kwargs: browser)
-    login = Mock(status=200)
+    login = Mock(status=login_status)
+    login.header_value.return_value = "application/json"
+    login.body.return_value = b'{"details":{"msg":"auth005"},"private":"private-test-password"}'
     login.json.return_value = {"success": True}
     activities = Mock(status=200)
     activities.json.return_value = {
@@ -193,4 +203,145 @@ def test_successful_website_fetch_with_diagnostics_preserves_workout(monkeypatch
         context.__enter__.return_value.value = response
         responses.append(context)
     page.expect_response.side_effect = responses
-    assert strava_web.latest_workout() == ("Morning Workout", 2880)
+    if login_status == 200:
+        assert strava_web.latest_workout() == ("Morning Workout", 2880)
+    else:
+        with pytest.raises(StravaWebsiteError) as caught:
+            strava_web.latest_workout()
+        assert str(caught.value) == "Strava login returned HTTP 403 (response: json; reason: trust)"
+        assert "private-test-password" not in str(caught.value)
+        page.goto.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "method,url,expected",
+    [
+        ("POST", "https://www.strava.com/session", True),
+        ("GET", "https://www.strava.com/session", False),
+        ("POST", "https://other.invalid/session", False),
+        ("POST", "http://www.strava.com/session", False),
+        ("POST", "https://www.strava.com/session/other", False),
+    ],
+)
+def test_login_request_matching_is_specific(method, url, expected):
+    from unittest.mock import Mock
+
+    from app.strava_web import is_login_request
+
+    assert is_login_request(Mock(method=method, url=url)) is expected
+
+
+@pytest.mark.parametrize(
+    "code,reason",
+    [
+        ("auth002", "recaptcha_score"),
+        ("auth003", "honey_pot"),
+        ("auth004", "rate_limiting"),
+        ("auth005", "trust"),
+        ("auth013", "expired_session"),
+        ("auth015", "invalid_credentials"),
+        ("auth016", "otp_state_missing"),
+    ],
+)
+def test_login_rejection_reports_only_known_categories(code, reason):
+    import json
+    from unittest.mock import Mock
+
+    from app.strava_web import login_response_diagnostics
+
+    response = Mock()
+    response.header_value.return_value = "application/json; charset=utf-8"
+    response.body.return_value = json.dumps({"details": {"msg": code}, "private": "private-password"}).encode()
+    assert login_response_diagnostics(response) == f"response: json; reason: {reason}"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"details":{"msg":"private-password"}}',
+        b'{"details":{"msg":["auth002"]}}',
+        b'{"details":"private-password"}',
+        b"[]",
+        b"null",
+        b"not JSON private-password",
+        b"\xff",
+        b"x" * 16385,
+    ],
+)
+def test_unknown_or_invalid_login_payload_never_exposes_content(body):
+    from unittest.mock import Mock
+
+    from app.strava_web import login_response_diagnostics
+
+    response = Mock()
+    response.header_value.return_value = "application/json"
+    response.body.return_value = body
+    assert login_response_diagnostics(response) == "response: json; reason: unknown"
+
+
+@pytest.mark.parametrize(
+    "content_type,format_name",
+    [
+        ("text/html; charset=utf-8", "html"),
+        ("text/plain private-password", "other"),
+        (None, "unknown"),
+    ],
+)
+def test_non_json_response_does_not_read_or_label_body_as_bot_block(content_type, format_name):
+    from unittest.mock import Mock
+
+    from app.strava_web import login_response_diagnostics
+
+    response = Mock()
+    response.header_value.return_value = content_type
+    assert login_response_diagnostics(response) == f"response: {format_name}; reason: unknown"
+    response.body.assert_not_called()
+
+
+@pytest.mark.parametrize("failed_read", ["header_value", "body"])
+def test_login_response_read_errors_preserve_safe_diagnostics(failed_read):
+    from unittest.mock import Mock
+
+    from playwright.sync_api import Error as BrowserError
+
+    from app.strava_web import login_response_diagnostics
+
+    response = Mock()
+    response.header_value.return_value = "application/json"
+    getattr(response, failed_read).side_effect = BrowserError("private-password")
+    expected = "unknown" if failed_read == "header_value" else "json"
+    assert login_response_diagnostics(response) == f"response: {expected}; reason: unknown"
+
+
+@pytest.mark.parametrize(
+    "count,visible,enabled,state",
+    [
+        (0, False, False, "missing"),
+        (2, True, True, "ambiguous"),
+        (1, False, False, "hidden"),
+        (1, True, False, "disabled"),
+        (1, True, True, "enabled"),
+    ],
+)
+def test_failed_submit_button_state_uses_fixed_labels(count, visible, enabled, state):
+    from unittest.mock import Mock
+
+    from app.strava_web import submit_button_state
+
+    button = Mock()
+    button.count.return_value = count
+    button.is_visible.return_value = visible
+    button.is_enabled.return_value = enabled
+    assert submit_button_state(button) == state
+
+
+def test_submit_button_read_error_is_safe():
+    from unittest.mock import Mock
+
+    from playwright.sync_api import Error as BrowserError
+
+    from app.strava_web import submit_button_state
+
+    button = Mock()
+    button.count.side_effect = BrowserError("private-password")
+    assert submit_button_state(button) == "unknown"
