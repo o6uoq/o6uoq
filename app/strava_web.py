@@ -1,5 +1,6 @@
 """Read the signed-in athlete's newest workout through Strava's website."""
 
+import json
 import os
 import time
 from tempfile import TemporaryDirectory
@@ -8,12 +9,59 @@ from urllib.parse import urlsplit
 from camoufox.sync_api import Camoufox
 from dotenv import load_dotenv
 from playwright.sync_api import Error as BrowserError
-from playwright.sync_api import Request, Response
+from playwright.sync_api import Locator, Request, Response
 from playwright.sync_api import TimeoutError as BrowserTimeout
 
 
 class StravaWebsiteError(RuntimeError):
     """Safe website diagnostics without browser call logs or credentials."""
+
+
+def is_login_request(request: Request) -> bool:
+    url = urlsplit(request.url)
+    return request.method == "POST" and (url.scheme, url.netloc, url.path) == ("https", "www.strava.com", "/session")
+
+
+def login_response_diagnostics(response: Response) -> str:
+    """Classify a rejection using fixed labels; never return response content."""
+    format_name, reason = "unknown", "unknown"
+    try:
+        media_type = (response.header_value("content-type") or "").split(";", 1)[0].strip().lower()
+        format_name = {"application/json": "json", "text/html": "html"}.get(
+            media_type, "other" if media_type else "unknown"
+        )
+        if format_name == "json":
+            body = response.body()
+            if len(body) <= 16384:
+                payload = json.loads(body)
+                details = payload.get("details") if isinstance(payload, dict) else None
+                code = details.get("msg") if isinstance(details, dict) else None
+                if isinstance(code, str):
+                    reason = {
+                        "auth002": "recaptcha_score",
+                        "auth003": "honey_pot",
+                        "auth004": "rate_limiting",
+                        "auth005": "trust",
+                        "auth013": "expired_session",
+                        "auth015": "invalid_credentials",
+                        "auth016": "otp_state_missing",
+                    }.get(code, "unknown")
+    except BrowserError, ValueError:
+        pass
+    return f"response: {format_name}; reason: {reason}"
+
+
+def submit_button_state(button: Locator) -> str:
+    """Best-effort snapshot after a failed click, before the browser closes."""
+    try:
+        count = button.count()
+        if count != 1:
+            return "missing" if count == 0 else "ambiguous"
+        if not button.is_visible():
+            return "hidden"
+        return "enabled" if button.is_enabled(timeout=1000) else "disabled"
+    except BrowserError:
+        return "unknown"
 
 
 def workout_from_training(payload: dict) -> tuple[str, int]:
@@ -56,15 +104,16 @@ def latest_workout() -> tuple[str, int]:
     started = time.monotonic()
     session_requested = False
     session_status: int | None = None
+    submit_state = "unknown"
 
     def observe_request(request: Request) -> None:
         nonlocal session_requested
-        if urlsplit(request.url).path == "/session":
+        if is_login_request(request):
             session_requested = True
 
     def observe_response(response: Response) -> None:
         nonlocal session_status
-        if urlsplit(response.url).path == "/session":
+        if is_login_request(response.request):
             session_status = response.status
 
     try:
@@ -125,12 +174,19 @@ def latest_workout() -> tuple[str, int]:
             page.on("request", observe_request)
             page.on("response", observe_response)
             stage = "password form submission"
-            with page.expect_response(lambda r: urlsplit(r.url).path == "/session") as submitted:
-                field.locator("xpath=ancestor::form").locator("button[type=submit]").click()
+            button = field.locator("xpath=ancestor::form").locator("button[type=submit]")
+            with page.expect_response(lambda r: is_login_request(r.request)) as submitted:
+                try:
+                    button.click()
+                except BrowserError:
+                    submit_state = submit_button_state(button)
+                    raise
                 stage = "login response"
             response = submitted.value
             if response.status != 200:
-                raise StravaWebsiteError(f"Strava login returned HTTP {response.status}")
+                raise StravaWebsiteError(
+                    f"Strava login returned HTTP {response.status} ({login_response_diagnostics(response)})"
+                )
             accepted = response.json()
             if not isinstance(accepted, dict) or accepted.get("success") is not True:
                 raise StravaWebsiteError("Strava did not accept the login")
@@ -149,5 +205,5 @@ def latest_workout() -> tuple[str, int]:
         raise StravaWebsiteError(
             f"Strava website {kind} during {stage} after {elapsed:.1f}s "
             f"(session requested: {'yes' if session_requested else 'no'}; "
-            f"session HTTP: {session_status if session_status is not None else 'none'})"
+            f"session HTTP: {session_status if session_status is not None else 'none'}; submit: {submit_state})"
         ) from None
