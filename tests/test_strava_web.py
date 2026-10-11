@@ -140,7 +140,7 @@ def test_login_failures_report_safe_stage_and_network_metadata(
     browser.__enter__.return_value.new_page.return_value = page
     monkeypatch.setattr(strava_web, "Camoufox", lambda **kwargs: browser)
     failure = (BrowserTimeout if error_kind == "timeout" else BrowserError)(
-        "Call log: private-login@example.invalid private-test-password"
+        "Call log: private-login@example.invalid private-test-password\n  performing click action"
     )
 
     def click():
@@ -171,6 +171,7 @@ def test_login_failures_report_safe_stage_and_network_metadata(
     assert "private-login" not in message
     assert caught.value.__suppress_context__
     assert f"submit: {'disabled' if failure_stage == 'password form submission' else 'unknown'}" in message
+    assert f"click detail: {'pointer-action' if failure_stage == 'password form submission' else 'unknown'}" in message
 
 
 @pytest.mark.parametrize("login_status", [200, 403])
@@ -345,3 +346,39 @@ def test_submit_button_read_error_is_safe():
     button = Mock()
     button.count.side_effect = BrowserError("private-password")
     assert submit_button_state(button) == "unknown"
+
+
+@pytest.mark.parametrize(
+    "detail,expected",
+    [
+        ("element is not stable", "unstable"),
+        ('<div data-private="private-password"> intercepts pointer events', "obscured"),
+        ("element is not visible", "hidden"),
+        ("element is not enabled", "disabled"),
+        ("element is outside of the viewport", "outside-viewport"),
+        ("element was detached from the DOM, retrying", "detached"),
+        ("performing click action", "pointer-action"),
+        ("waiting for scheduled navigations to finish", "navigation"),
+        ("unrecognised private-password", "unknown"),
+    ],
+)
+def test_click_timeout_details_are_classified_without_exposing_call_log(detail, expected):
+    from playwright.sync_api import TimeoutError as BrowserTimeout
+
+    from app.strava_web import click_failure_detail
+
+    error = BrowserTimeout(
+        f"Timeout 25000ms exceeded.\nCall log:\n- {detail}\nprivate-login@example.invalid private-password"
+    )
+    assert click_failure_detail(error) == expected
+
+
+def test_click_detail_uses_latest_check_instead_of_an_earlier_retry():
+    from playwright.sync_api import TimeoutError as BrowserTimeout
+
+    from app.strava_web import click_failure_detail
+
+    error = BrowserTimeout("element is not stable\nelement is visible, enabled and stable\nperforming click action")
+    assert click_failure_detail(error) == "pointer-action"
+    completed = BrowserTimeout("waiting for scheduled navigations to finish\nnavigations have finished")
+    assert click_failure_detail(completed) == "unknown"
