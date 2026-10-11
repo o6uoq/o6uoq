@@ -143,7 +143,8 @@ def test_login_failures_report_safe_stage_and_network_metadata(
         "Call log: private-login@example.invalid private-test-password\n  performing click action"
     )
 
-    def click():
+    def submit(key):
+        assert key == "Enter"
         if requested:
             callbacks["request"](Mock(method="POST", url="https://www.strava.com/session?private-test-password"))
         if status is not None:
@@ -153,11 +154,7 @@ def test_login_failures_report_safe_stage_and_network_metadata(
         if failure_stage == "password form submission":
             raise failure
 
-    button = page.locator.return_value.locator.return_value.locator.return_value
-    button.count.return_value = 1
-    button.is_visible.return_value = True
-    button.is_enabled.return_value = False
-    button.click.side_effect = click
+    page.locator.return_value.press.side_effect = submit
     if failure_stage == "login response":
         page.expect_response.return_value.__exit__.side_effect = failure
     with pytest.raises(StravaWebsiteError) as caught:
@@ -170,8 +167,6 @@ def test_login_failures_report_safe_stage_and_network_metadata(
     assert "private-test-password" not in message
     assert "private-login" not in message
     assert caught.value.__suppress_context__
-    assert f"submit: {'disabled' if failure_stage == 'password form submission' else 'unknown'}" in message
-    assert f"click detail: {'pointer-action' if failure_stage == 'password form submission' else 'unknown'}" in message
 
 
 @pytest.mark.parametrize("login_status", [200, 403])
@@ -212,6 +207,8 @@ def test_website_fetch_preserves_success_and_reports_rejection(monkeypatch, logi
         assert str(caught.value) == "Strava login returned HTTP 403 (response: json; reason: trust)"
         assert "private-test-password" not in str(caught.value)
         page.goto.assert_called_once()
+    page.locator.return_value.press.assert_called_once_with("Enter")
+    page.locator.return_value.locator.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -312,73 +309,3 @@ def test_login_response_read_errors_preserve_safe_diagnostics(failed_read):
     getattr(response, failed_read).side_effect = BrowserError("private-password")
     expected = "unknown" if failed_read == "header_value" else "json"
     assert login_response_diagnostics(response) == f"response: {expected}; reason: unknown"
-
-
-@pytest.mark.parametrize(
-    "count,visible,enabled,state",
-    [
-        (0, False, False, "missing"),
-        (2, True, True, "ambiguous"),
-        (1, False, False, "hidden"),
-        (1, True, False, "disabled"),
-        (1, True, True, "enabled"),
-    ],
-)
-def test_failed_submit_button_state_uses_fixed_labels(count, visible, enabled, state):
-    from unittest.mock import Mock
-
-    from app.strava_web import submit_button_state
-
-    button = Mock()
-    button.count.return_value = count
-    button.is_visible.return_value = visible
-    button.is_enabled.return_value = enabled
-    assert submit_button_state(button) == state
-
-
-def test_submit_button_read_error_is_safe():
-    from unittest.mock import Mock
-
-    from playwright.sync_api import Error as BrowserError
-
-    from app.strava_web import submit_button_state
-
-    button = Mock()
-    button.count.side_effect = BrowserError("private-password")
-    assert submit_button_state(button) == "unknown"
-
-
-@pytest.mark.parametrize(
-    "detail,expected",
-    [
-        ("element is not stable", "unstable"),
-        ('<div data-private="private-password"> intercepts pointer events', "obscured"),
-        ("element is not visible", "hidden"),
-        ("element is not enabled", "disabled"),
-        ("element is outside of the viewport", "outside-viewport"),
-        ("element was detached from the DOM, retrying", "detached"),
-        ("performing click action", "pointer-action"),
-        ("waiting for scheduled navigations to finish", "navigation"),
-        ("unrecognised private-password", "unknown"),
-    ],
-)
-def test_click_timeout_details_are_classified_without_exposing_call_log(detail, expected):
-    from playwright.sync_api import TimeoutError as BrowserTimeout
-
-    from app.strava_web import click_failure_detail
-
-    error = BrowserTimeout(
-        f"Timeout 25000ms exceeded.\nCall log:\n- {detail}\nprivate-login@example.invalid private-password"
-    )
-    assert click_failure_detail(error) == expected
-
-
-def test_click_detail_uses_latest_check_instead_of_an_earlier_retry():
-    from playwright.sync_api import TimeoutError as BrowserTimeout
-
-    from app.strava_web import click_failure_detail
-
-    error = BrowserTimeout("element is not stable\nelement is visible, enabled and stable\nperforming click action")
-    assert click_failure_detail(error) == "pointer-action"
-    completed = BrowserTimeout("waiting for scheduled navigations to finish\nnavigations have finished")
-    assert click_failure_detail(completed) == "unknown"

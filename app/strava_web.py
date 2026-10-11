@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 from camoufox.sync_api import Camoufox
 from dotenv import load_dotenv
 from playwright.sync_api import Error as BrowserError
-from playwright.sync_api import Locator, Request, Response
+from playwright.sync_api import Request, Response
 from playwright.sync_api import TimeoutError as BrowserTimeout
 
 
@@ -49,41 +49,6 @@ def login_response_diagnostics(response: Response) -> str:
     except BrowserError, ValueError:
         pass
     return f"response: {format_name}; reason: {reason}"
-
-
-def click_failure_detail(error: BrowserError) -> str:
-    """Return the last recognised click detail, never the browser call log."""
-    markers = (
-        ("element is not stable", "unstable"),
-        ("intercepts pointer events", "obscured"),
-        ("element is not visible", "hidden"),
-        ("element is not enabled", "disabled"),
-        ("element is outside of the viewport", "outside-viewport"),
-        ("element was detached from the dom", "detached"),
-        ("element is visible, enabled and stable", "ready"),
-        ("performing click action", "pointer-action"),
-        ("waiting for scheduled navigations to finish", "navigation"),
-        ("navigations have finished", "unknown"),
-    )
-    detail = "unknown"
-    for line in str(error).lower().splitlines():
-        for marker, label in markers:
-            if marker in line:
-                detail = label
-    return detail
-
-
-def submit_button_state(button: Locator) -> str:
-    """Best-effort snapshot after a failed click, before the browser closes."""
-    try:
-        count = button.count()
-        if count != 1:
-            return "missing" if count == 0 else "ambiguous"
-        if not button.is_visible():
-            return "hidden"
-        return "enabled" if button.is_enabled(timeout=1000) else "disabled"
-    except BrowserError:
-        return "unknown"
 
 
 def workout_from_training(payload: dict) -> tuple[str, int]:
@@ -126,8 +91,6 @@ def latest_workout() -> tuple[str, int]:
     started = time.monotonic()
     session_requested = False
     session_status: int | None = None
-    submit_state = "unknown"
-    click_detail = "unknown"
 
     def observe_request(request: Request) -> None:
         nonlocal session_requested
@@ -197,14 +160,8 @@ def latest_workout() -> tuple[str, int]:
             page.on("request", observe_request)
             page.on("response", observe_response)
             stage = "password form submission"
-            button = field.locator("xpath=ancestor::form").locator("button[type=submit]")
             with page.expect_response(lambda r: is_login_request(r.request)) as submitted:
-                try:
-                    button.click()
-                except BrowserError as error:
-                    click_detail = click_failure_detail(error)
-                    submit_state = submit_button_state(button)
-                    raise
+                field.press("Enter")
                 stage = "login response"
             response = submitted.value
             if response.status != 200:
@@ -229,6 +186,5 @@ def latest_workout() -> tuple[str, int]:
         raise StravaWebsiteError(
             f"Strava website {kind} during {stage} after {elapsed:.1f}s "
             f"(session requested: {'yes' if session_requested else 'no'}; "
-            f"session HTTP: {session_status if session_status is not None else 'none'}; "
-            f"submit: {submit_state}; click detail: {click_detail})"
+            f"session HTTP: {session_status if session_status is not None else 'none'})"
         ) from None
