@@ -1,4 +1,4 @@
-name: Validate fitness CLI
+name: Validate Health Profile App
 
 on:
   pull_request:

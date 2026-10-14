@@ -132,7 +132,7 @@ The workout comes from your own My Activities response and uses `elapsed_time_ra
 Website errors or changed response fields preserve the saved workout and fail the workflow.
 This depends on Strava's current login-page implementation; a layout change can require an update.
 
-The manual `Validate fitness CLI` workflow also checks a real Strava login on a GitHub runner.
+The manual `Validate Health Profile App` workflow also checks a real Strava login on a GitHub runner.
 Its Strava check only reads your activities; it does not refresh Fitbit or write the profile.
 PR validation stays offline and does not receive login credentials.
 Browser, addon and model assets are installed in the image; normal runtime does not download them.
