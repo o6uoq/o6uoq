@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import time
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
@@ -23,8 +24,10 @@ def is_login_request(request: Request) -> bool:
 
 
 def login_response_diagnostics(response: Response) -> str:
-    """Classify a rejection using fixed labels; never return response content."""
+    """Report fixed diagnostic states and bounded auth codes, never private content."""
     format_name, reason = "unknown", "unknown"
+    parse, code_state = "not_attempted", "not_attempted"
+    code = None
     try:
         media_type = (response.header_value("content-type") or "").split(";", 1)[0].strip().lower()
         format_name = {"application/json": "json", "text/html": "html"}.get(
@@ -32,23 +35,41 @@ def login_response_diagnostics(response: Response) -> str:
         )
         if format_name == "json":
             body = response.body()
-            if len(body) <= 16384:
+            if len(body) > 16384:
+                parse = "too_large"
+            else:
                 payload = json.loads(body)
-                details = payload.get("details") if isinstance(payload, dict) else None
-                code = details.get("msg") if isinstance(details, dict) else None
-                if isinstance(code, str):
-                    reason = {
-                        "auth002": "recaptcha_score",
-                        "auth003": "honey_pot",
-                        "auth004": "rate_limiting",
-                        "auth005": "trust",
-                        "auth013": "expired_session",
-                        "auth015": "invalid_credentials",
-                        "auth016": "otp_state_missing",
-                    }.get(code, "unknown")
-    except BrowserError, ValueError:
-        pass
-    return f"response: {format_name}; reason: {reason}"
+                parse = "object" if isinstance(payload, dict) else "non_object"
+                if isinstance(payload, dict):
+                    details = payload.get("details")
+                    if "details" not in payload:
+                        code_state = "details_missing"
+                    elif not isinstance(details, dict):
+                        code_state = "details_not_object"
+                    elif "msg" not in details:
+                        code_state = "msg_missing"
+                    elif not isinstance(details["msg"], str):
+                        code_state = "msg_not_string"
+                    elif not re.fullmatch(r"auth[0-9]{3}", details["msg"]):
+                        code_state = "unrecognised_string"
+                    else:
+                        code = details["msg"]
+                        reason = {
+                            "auth002": "recaptcha_score",
+                            "auth003": "honey_pot",
+                            "auth004": "rate_limiting",
+                            "auth005": "trust",
+                            "auth013": "expired_session",
+                            "auth015": "invalid_credentials",
+                            "auth016": "otp_state_missing",
+                        }.get(code, "unknown")
+                        code_state = "known" if reason != "unknown" else "unknown_auth_code"
+    except BrowserError:
+        parse = "read_error"
+    except ValueError:
+        parse = "invalid_json"
+    code_detail = f"; code: {code}" if code is not None else ""
+    return f"response: {format_name}; parse: {parse}; code_state: {code_state}{code_detail}; reason: {reason}"
 
 
 def workout_from_training(payload: dict) -> tuple[str, int]:
