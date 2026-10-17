@@ -204,7 +204,10 @@ def test_website_fetch_preserves_success_and_reports_rejection(monkeypatch, logi
     else:
         with pytest.raises(StravaWebsiteError) as caught:
             strava_web.latest_workout()
-        assert str(caught.value) == "Strava login returned HTTP 403 (response: json; reason: trust)"
+        assert str(caught.value) == (
+            "Strava login returned HTTP 403 (response: json; parse: object; "
+            "code_state: known; code: auth005; reason: trust)"
+        )
         assert "private-test-password" not in str(caught.value)
         page.goto.assert_called_once()
     page.locator.return_value.press.assert_called_once_with("Enter")
@@ -239,9 +242,10 @@ def test_login_request_matching_is_specific(method, url, expected):
         ("auth013", "expired_session"),
         ("auth015", "invalid_credentials"),
         ("auth016", "otp_state_missing"),
+        ("auth999", "unknown"),
     ],
 )
-def test_login_rejection_reports_only_known_categories(code, reason):
+def test_login_rejection_reports_bounded_codes_and_known_categories(code, reason):
     import json
     from unittest.mock import Mock
 
@@ -250,23 +254,30 @@ def test_login_rejection_reports_only_known_categories(code, reason):
     response = Mock()
     response.header_value.return_value = "application/json; charset=utf-8"
     response.body.return_value = json.dumps({"details": {"msg": code}, "private": "private-password"}).encode()
-    assert login_response_diagnostics(response) == f"response: json; reason: {reason}"
+    state = "unknown_auth_code" if code == "auth999" else "known"
+    assert login_response_diagnostics(response) == (
+        f"response: json; parse: object; code_state: {state}; code: {code}; reason: {reason}"
+    )
 
 
 @pytest.mark.parametrize(
-    "body",
+    "body,parse,state",
     [
-        b'{"details":{"msg":"private-password"}}',
-        b'{"details":{"msg":["auth002"]}}',
-        b'{"details":"private-password"}',
-        b"[]",
-        b"null",
-        b"not JSON private-password",
-        b"\xff",
-        b"x" * 16385,
+        (b'{"details":{"msg":"private-password"}}', "object", "unrecognised_string"),
+        (b'{"details":{"msg":"auth005\\n"}}', "object", "unrecognised_string"),
+        (b'{"details":{"msg":"auth005-private-password"}}', "object", "unrecognised_string"),
+        (b'{"details":{"msg":["auth002"]}}', "object", "msg_not_string"),
+        (b'{"details":{}}', "object", "msg_missing"),
+        (b'{"private-password":"private-password"}', "object", "details_missing"),
+        (b'{"details":"private-password"}', "object", "details_not_object"),
+        (b"[]", "non_object", "not_attempted"),
+        (b"null", "non_object", "not_attempted"),
+        (b"not JSON private-password", "invalid_json", "not_attempted"),
+        (b"\xff", "invalid_json", "not_attempted"),
+        (b"x" * 16385, "too_large", "not_attempted"),
     ],
 )
-def test_unknown_or_invalid_login_payload_never_exposes_content(body):
+def test_unknown_or_invalid_login_payload_never_exposes_content(body, parse, state):
     from unittest.mock import Mock
 
     from app.strava_web import login_response_diagnostics
@@ -274,7 +285,9 @@ def test_unknown_or_invalid_login_payload_never_exposes_content(body):
     response = Mock()
     response.header_value.return_value = "application/json"
     response.body.return_value = body
-    assert login_response_diagnostics(response) == "response: json; reason: unknown"
+    diagnostic = login_response_diagnostics(response)
+    assert diagnostic == f"response: json; parse: {parse}; code_state: {state}; reason: unknown"
+    assert "private-password" not in diagnostic
 
 
 @pytest.mark.parametrize(
@@ -292,7 +305,10 @@ def test_non_json_response_does_not_read_or_label_body_as_bot_block(content_type
 
     response = Mock()
     response.header_value.return_value = content_type
-    assert login_response_diagnostics(response) == f"response: {format_name}; reason: unknown"
+    assert (
+        login_response_diagnostics(response)
+        == f"response: {format_name}; parse: not_attempted; code_state: not_attempted; reason: unknown"
+    )
     response.body.assert_not_called()
 
 
@@ -308,4 +324,7 @@ def test_login_response_read_errors_preserve_safe_diagnostics(failed_read):
     response.header_value.return_value = "application/json"
     getattr(response, failed_read).side_effect = BrowserError("private-password")
     expected = "unknown" if failed_read == "header_value" else "json"
-    assert login_response_diagnostics(response) == f"response: {expected}; reason: unknown"
+    assert (
+        login_response_diagnostics(response)
+        == f"response: {expected}; parse: read_error; code_state: not_attempted; reason: unknown"
+    )
