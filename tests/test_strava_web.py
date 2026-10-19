@@ -170,7 +170,7 @@ def test_login_failures_report_safe_stage_and_network_metadata(
 
 
 @pytest.mark.parametrize("login_status", [200, 403])
-def test_website_fetch_preserves_success_and_reports_rejection(monkeypatch, login_status):
+def test_website_fetch_preserves_success_and_reports_rejection(monkeypatch, capsys, login_status):
     from unittest.mock import MagicMock, Mock
 
     from app import strava_web
@@ -184,6 +184,13 @@ def test_website_fetch_preserves_success_and_reports_rejection(monkeypatch, logi
     browser.__enter__.return_value.new_page.return_value = page
     monkeypatch.setattr(strava_web, "Camoufox", lambda **kwargs: browser)
     login = Mock(status=login_status)
+    login.request = submitted_login_request(
+        [
+            ("email", "test@example.invalid"),
+            ("password", "private-test-password"),
+            ("g-recaptcha-response", "private-captcha"),
+        ]
+    )
     login.header_value.return_value = "application/json"
     login.body.return_value = b'{"details":{"msg":"auth005"},"private":"private-test-password"}'
     login.json.return_value = {"success": True}
@@ -210,6 +217,10 @@ def test_website_fetch_preserves_success_and_reports_rejection(monkeypatch, logi
         )
         assert "private-test-password" not in str(caught.value)
         page.goto.assert_called_once()
+    assert (
+        capsys.readouterr().err
+        == "Strava login request: email_matches_input: yes; password_matches_input: yes; recaptcha_nonempty: yes\n"
+    )
     page.locator.return_value.press.assert_called_once_with("Enter")
     page.locator.return_value.locator.assert_not_called()
 
@@ -327,4 +338,96 @@ def test_login_response_read_errors_preserve_safe_diagnostics(failed_read):
     assert (
         login_response_diagnostics(response)
         == f"response: {expected}; parse: read_error; code_state: not_attempted; reason: unknown"
+    )
+
+
+def submitted_login_request(fields):
+    from unittest.mock import Mock
+
+    import requests
+
+    prepared = requests.Request(
+        "POST", "https://www.strava.com/session", files=[(name, (None, value)) for name, value in fields]
+    ).prepare()
+    request = Mock(post_data_buffer=prepared.body)
+    request.header_value.return_value = prepared.headers["Content-Type"]
+    return request
+
+
+@pytest.mark.parametrize(
+    "fields,expected",
+    [
+        (
+            [
+                ("email", "private@example.invalid"),
+                ("password", "private-passwordé\r\n--other-boundary"),
+                ("g-recaptcha-response", "private-captcha"),
+            ],
+            ("yes", "yes", "yes"),
+        ),
+        (
+            [("email", "wrong-private-email"), ("password", "wrong-private-password"), ("g-recaptcha-response", "")],
+            ("no", "no", "no"),
+        ),
+        ([("auth_version", "v3")], ("no", "no", "no")),
+        (
+            [
+                ("email", "private@example.invalid"),
+                ("email", "duplicate-private-email"),
+                ("password", "private-passwordé\r\n--other-boundary"),
+                ("g-recaptcha-response", "private-captcha"),
+            ],
+            ("unknown", "yes", "yes"),
+        ),
+    ],
+)
+def test_login_request_checks_actual_multipart_fields_without_exposing_values(fields, expected):
+    from app.strava_web import login_request_diagnostics
+
+    diagnostic = login_request_diagnostics(
+        submitted_login_request(fields), "private@example.invalid", "private-passwordé\r\n--other-boundary"
+    )
+    assert diagnostic == (
+        f"email_matches_input: {expected[0]}; password_matches_input: {expected[1]}; recaptcha_nonempty: {expected[2]}"
+    )
+    assert "private" not in diagnostic
+
+
+@pytest.mark.parametrize(
+    "content_type,body",
+    [
+        ("application/json", b'{"password":"private-password"}'),
+        ("multipart/form-data", b"private-password"),
+        ("multipart/form-data; boundary=missing", b"private-password"),
+        (
+            "multipart/form-data; boundary=x",
+            b'--x\r\nContent-Disposition: form-data; name="password"\r\n\r\nprivate-password',
+        ),
+        ("multipart/form-data; boundary=x", None),
+        ("multipart/form-data; boundary=x", b"private-password" * 10000),
+    ],
+)
+def test_unreadable_login_request_reports_unknown_without_exposing_content(content_type, body):
+    from unittest.mock import Mock
+
+    from app.strava_web import login_request_diagnostics
+
+    request = Mock(post_data_buffer=body)
+    request.header_value.return_value = content_type
+    assert login_request_diagnostics(request, "private-email", "private-password") == (
+        "email_matches_input: unknown; password_matches_input: unknown; recaptcha_nonempty: unknown"
+    )
+
+
+def test_login_request_read_failure_does_not_change_login_outcome_or_leak_errors():
+    from unittest.mock import Mock
+
+    from playwright.sync_api import Error as BrowserError
+
+    from app.strava_web import login_request_diagnostics
+
+    request = Mock()
+    request.header_value.side_effect = BrowserError("private-password")
+    assert login_request_diagnostics(request, "private-email", "private-password") == (
+        "email_matches_input: unknown; password_matches_input: unknown; recaptcha_nonempty: unknown"
     )

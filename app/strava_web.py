@@ -3,7 +3,11 @@
 import json
 import os
 import re
+import sys
 import time
+from email import policy
+from email.errors import MessageError
+from email.parser import BytesParser
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
 
@@ -21,6 +25,47 @@ class StravaWebsiteError(RuntimeError):
 def is_login_request(request: Request) -> bool:
     url = urlsplit(request.url)
     return request.method == "POST" and (url.scheme, url.netloc, url.path) == ("https", "www.strava.com", "/session")
+
+
+def login_request_diagnostics(request: Request, login: str, password: str) -> str:
+    """Compare submitted multipart fields; return fixed states without private content."""
+    states = ["unknown", "unknown", "unknown"]
+    try:
+        content_type = request.header_value("content-type") or ""
+        body = request.post_data_buffer
+        if (
+            body is not None
+            and len(body) <= 65536
+            and len(content_type) <= 1024
+            and not any(character in content_type for character in "\r\n")
+        ):
+            message = BytesParser(policy=policy.default.clone(raise_on_defect=True)).parsebytes(
+                b"Content-Type: " + content_type.encode("ascii") + b"\r\n\r\n" + body
+            )
+            if message.get_content_type() == "multipart/form-data" and message.is_multipart():
+                fields: dict[str, list[str]] = {"email": [], "password": [], "g-recaptcha-response": []}
+                for part in message.iter_parts():
+                    name = part.get_param("name", header="content-disposition")
+                    if part.is_multipart():
+                        raise ValueError("Nested form data")
+                    if name in fields:
+                        value = part.get_payload(decode=True)
+                        if part.get_content_disposition() != "form-data" or part.get_filename() is not None:
+                            raise ValueError("Expected a text form field")
+                        if not isinstance(value, bytes):
+                            raise ValueError("Unreadable form field")
+                        fields[name].append(value.decode("utf-8"))
+                states = [
+                    "unknown"
+                    if len(values) > 1
+                    else "yes"
+                    if values and (bool(values[0].strip()) if expected is None else values[0] == expected)
+                    else "no"
+                    for values, expected in zip(fields.values(), (login, password, None), strict=True)
+                ]
+    except BrowserError, UnicodeError, ValueError, MessageError:
+        pass
+    return f"email_matches_input: {states[0]}; password_matches_input: {states[1]}; recaptcha_nonempty: {states[2]}"
 
 
 def login_response_diagnostics(response: Response) -> str:
@@ -185,6 +230,9 @@ def latest_workout() -> tuple[str, int]:
                 field.press("Enter")
                 stage = "login response"
             response = submitted.value
+            print(
+                f"Strava login request: {login_request_diagnostics(response.request, login, password)}", file=sys.stderr
+            )
             if response.status != 200:
                 raise StravaWebsiteError(
                     f"Strava login returned HTTP {response.status} ({login_response_diagnostics(response)})"
