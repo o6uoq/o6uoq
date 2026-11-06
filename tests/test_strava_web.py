@@ -95,8 +95,7 @@ def test_website_preserves_original_api_and_profile_format(monkeypatch, capsys, 
         profile,
         "fetch",
         lambda module, command: {
-            "fitbit-steps": ["282"],
-            "fitbit-sleep": ["4h 53m"],
+            "google-health-summary": ["282", "4h 53m"],
             "strava-latest-workout": original_output.splitlines(),
         }[command],
     )
