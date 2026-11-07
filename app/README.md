@@ -47,7 +47,7 @@ For local Google Health reads, set the same three environment variables (or put 
 uv run python -m app.google_health
 ```
 
-API requests have 30-second timeouts. Errors name the identity, steps or sleep request and report recognised Google reasons such as `SERVICE_DISABLED` or `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. Raw OAuth/API bodies, messages and credentials are never logged. A Google OAuth error needs Google reauthorisation; do not run the retired Fitbit recovery script.
+API requests have 30-second timeouts. Errors name the identity, steps or sleep request and report recognised Google reasons such as `SERVICE_DISABLED` or `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. OAuth failures report recognised codes such as `invalid_grant` or `invalid_client`; a transport failure is identified separately. Raw OAuth/API bodies, messages and credentials are never logged. Check the reported OAuth code and client/token pairing before deciding to reauthorise; a failed exchange does not by itself prove expiry. The retired Fitbit recovery script cannot repair Google access.
 
 ## Strava
 

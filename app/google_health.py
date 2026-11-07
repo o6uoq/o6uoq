@@ -8,7 +8,7 @@ from functools import partial
 
 import requests
 from dotenv import load_dotenv
-from google.auth.exceptions import GoogleAuthError
+from google.auth.exceptions import GoogleAuthError, TransportError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
@@ -99,8 +99,22 @@ class GoogleHealthClient:
         if not self.credentials.valid:
             try:
                 self.credentials.refresh(partial(Request(session=self.session), timeout=30))
-            except GoogleAuthError:
-                raise GoogleHealthError("Google Health token refresh failed; reauthorise Google access") from None
+            except GoogleAuthError as error:
+                reason = "transport_error" if isinstance(error, TransportError) else "unknown"
+                for payload in error.args:
+                    code = payload.get("error") if isinstance(payload, dict) else None
+                    if isinstance(code, str) and code in {
+                        "invalid_grant",
+                        "invalid_client",
+                        "unauthorized_client",
+                        "invalid_scope",
+                        "invalid_request",
+                        "access_denied",
+                        "temporarily_unavailable",
+                        "server_error",
+                    }:
+                        reason = code
+                raise GoogleHealthError(f"Google Health token refresh failed (reason: {reason})") from None
 
     def request(self, method: str, path: str, **kwargs) -> dict:
         self.authenticate()

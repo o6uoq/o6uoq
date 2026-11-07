@@ -139,12 +139,14 @@ def test_http_error_names_operation_and_safe_reason(client, payload, reason):
     assert not any(value in str(error.value) for value in ("access-private", "refresh-private", "PRIVATE_SECRET"))
 
 
-def test_refresh_error_redacts_provider_body(client):
+@pytest.mark.parametrize("code", ["invalid_grant", "invalid_client"])
+def test_refresh_error_redacts_provider_body(client, code):
     instance, session = client
-    session.request.return_value = response({"error": "invalid_grant", "error_description": "refresh-private"}, 400)
+    session.request.return_value = response({"error": code, "error_description": "refresh-private"}, 400)
     with pytest.raises(GoogleHealthError, match="token refresh failed") as error:
         instance.summary(DAY)
     assert "refresh-private" not in str(error.value)
+    assert f"reason: {code}" in str(error.value)
     assert session.request.call_count == 1
 
 
