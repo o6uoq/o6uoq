@@ -19,10 +19,10 @@ select = ["E", "F", "I", "UP"]
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.6.2",
+    "pre-commit>=4.7.0",
     "pyright>=1.1.414",
     "pytest>=9.1.1",
-    "ruff>=0.16.9",
+    "ruff>=0.17.4",
 ]
 
 [tool.pytest.ini_options]
