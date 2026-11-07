@@ -18,7 +18,7 @@ The legacy Fitbit Web API and OAuth endpoints were retired on 2 November 2026. T
 uv run python -m scripts.configure_google_health /path/to/downloaded-client.json
 ```
 
-Paste the refresh token at the hidden prompt. Later runs can omit the JSON path and reuse the credentials saved in `.env`; use `--reauthorize` to enter a replacement token. Use `--env-file /path/to/.env` to select a different local credential file. The helper verifies your linked health account and today's steps/sleep before setting these repository secrets through stdin:
+Paste the refresh token at the hidden prompt. Later runs can omit the JSON path and reuse the credentials saved in `.env`; use `--reauthorize` to enter a replacement token. Use `--env-file /path/to/.env` to select a different local credential file. After Google accepts the OAuth credentials, the helper retains them privately in `.env`, including when a later Health API request fails. It verifies your linked health account and today's steps/sleep before setting these repository secrets through stdin:
 
 - `GOOGLE_HEALTH_CLIENT_ID`
 - `GOOGLE_HEALTH_CLIENT_SECRET`
@@ -47,7 +47,7 @@ For local Google Health reads, set the same three environment variables (or put 
 uv run python -m app.google_health
 ```
 
-API requests have 30-second timeouts. Errors never include raw OAuth/API bodies or credentials. A Google OAuth error needs Google reauthorisation; do not run the retired Fitbit recovery script.
+API requests have 30-second timeouts. Errors name the identity, steps or sleep request and report recognised Google reasons such as `SERVICE_DISABLED` or `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. Raw OAuth/API bodies, messages and credentials are never logged. A Google OAuth error needs Google reauthorisation; do not run the retired Fitbit recovery script.
 
 ## Strava
 

@@ -105,15 +105,38 @@ def test_missing_sleep_does_not_become_zero(client, payload):
         instance.summary(DAY)
 
 
-def test_http_error_redacts_provider_body(client):
+@pytest.mark.parametrize(
+    "payload,reason",
+    [
+        (
+            {
+                "error": {
+                    "status": "PERMISSION_DENIED",
+                    "message": "access-private",
+                    "details": [{"reason": "SERVICE_DISABLED", "metadata": {"private": "refresh-private"}}],
+                }
+            },
+            "SERVICE_DISABLED",
+        ),
+        (
+            {"error": {"status": "PERMISSION_DENIED", "details": [{"reason": "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}},
+            "ACCESS_TOKEN_SCOPE_INSUFFICIENT",
+        ),
+        ({"error": {"status": "PERMISSION_DENIED", "details": [{"reason": "PRIVATE_SECRET"}]}}, "PERMISSION_DENIED"),
+        ({"error": {"message": "Could not mint UberMint from GaiaMint."}}, "ACCOUNT_SIGN_IN_REQUIRED"),
+        (["access-private"], "unknown"),
+    ],
+)
+def test_http_error_names_operation_and_safe_reason(client, payload, reason):
     instance, session = client
     session.request.side_effect = [
         response({"access_token": "access-private", "expires_in": 3600}),
-        response({"error": {"message": "access-private"}}, 403),
+        response(payload, 403),
     ]
-    with pytest.raises(GoogleHealthError, match="HTTP 403") as error:
-        instance.summary(DAY)
-    assert "access-private" not in str(error.value)
+    with pytest.raises(GoogleHealthError, match="identity returned HTTP 403") as error:
+        instance.request("GET", "identity")
+    assert f"reason: {reason}" in str(error.value)
+    assert not any(value in str(error.value) for value in ("access-private", "refresh-private", "PRIVATE_SECRET"))
 
 
 def test_refresh_error_redacts_provider_body(client):
@@ -143,7 +166,7 @@ def test_wrong_date_or_partial_day_is_not_published(client, observed):
 
 @pytest.mark.parametrize("unavailable", [False, True])
 @pytest.mark.parametrize("source", ["json", "env", "env-reauthorize"])
-def test_setup_checks_access_before_setting_secrets(monkeypatch, tmp_path, capsys, unavailable, source):
+def test_setup_checks_access_before_setting_github_secrets(monkeypatch, tmp_path, capsys, unavailable, source):
     import subprocess
 
     from scripts import configure_google_health as setup
@@ -166,7 +189,6 @@ def test_setup_checks_access_before_setting_secrets(monkeypatch, tmp_path, capsy
         )
         if source == "env-reauthorize":
             arguments.append("--reauthorize")
-    original_env = env_file.read_text()
     monkeypatch.setattr("sys.argv", arguments)
 
     def prompt(_):
@@ -178,7 +200,7 @@ def test_setup_checks_access_before_setting_secrets(monkeypatch, tmp_path, capsy
     fake_client.request.return_value = {"healthUserId": "user-id"}
     fake_client.summary.return_value = (123, "7h 52m")
     if unavailable:
-        fake_client.summary.side_effect = GoogleHealthError("Google Health request returned HTTP 403")
+        fake_client.request.side_effect = GoogleHealthError("Google Health identity returned HTTP 403")
     monkeypatch.setattr(setup, "GoogleHealthClient", Mock(return_value=fake_client))
     run = Mock(return_value=subprocess.CompletedProcess([], 0))
     monkeypatch.setattr(subprocess, "run", run)
@@ -187,7 +209,6 @@ def test_setup_checks_access_before_setting_secrets(monkeypatch, tmp_path, capsy
             setup.main()
         assert error.value.code == 1
         assert run.call_count == 1
-        assert env_file.read_text() == original_env
     else:
         setup.main()
         calls = run.call_args_list[1:]
@@ -198,12 +219,12 @@ def test_setup_checks_access_before_setting_secrets(monkeypatch, tmp_path, capsy
             "GOOGLE_HEALTH_REFRESH_TOKEN",
         ]
         assert all("refresh-private" not in call.args[0] for call in calls)
-        from dotenv import dotenv_values
+    from dotenv import dotenv_values
 
-        stored = dotenv_values(env_file)
-        assert stored["GOOGLE_HEALTH_REFRESH_TOKEN"] == "refresh-private"
-        assert stored["STRAVA_PASSWORD"] == "keep-private"
-        assert env_file.stat().st_mode & 0o777 == 0o600
+    stored = dotenv_values(env_file)
+    assert stored["GOOGLE_HEALTH_REFRESH_TOKEN"] == "refresh-private"
+    assert stored["STRAVA_PASSWORD"] == "keep-private"
+    assert env_file.stat().st_mode & 0o777 == 0o600
     output = capsys.readouterr()
     assert "refresh-private" not in output.out + output.err
     assert "client-private" not in output.out + output.err
@@ -231,3 +252,24 @@ def test_setup_stops_if_hidden_input_is_unavailable(monkeypatch, tmp_path, capsy
     assert error.value.code == 1
     assert run.call_count == 1
     assert "interactive terminal" in capsys.readouterr().err
+
+
+def test_rejected_oauth_does_not_replace_local_credentials(monkeypatch, tmp_path, capsys):
+    from scripts import configure_google_health as setup
+
+    env_file = tmp_path / ".env"
+    original = "GOOGLE_HEALTH_CLIENT_ID=id\nGOOGLE_HEALTH_CLIENT_SECRET=secret\nGOOGLE_HEALTH_REFRESH_TOKEN=old\n"
+    env_file.write_text(original)
+    monkeypatch.setattr("sys.argv", ["setup", "--env-file", str(env_file), "--reauthorize"])
+    monkeypatch.setattr(setup, "getpass", lambda _: "new-private")
+    client = Mock()
+    client.authenticate.side_effect = GoogleHealthError("Google Health token refresh failed")
+    monkeypatch.setattr(setup, "GoogleHealthClient", Mock(return_value=client))
+    run = Mock()
+    monkeypatch.setattr(setup.subprocess, "run", run)
+    with pytest.raises(SystemExit) as error:
+        setup.main()
+    assert error.value.code == 1
+    assert env_file.read_text() == original
+    assert "token refresh failed" in capsys.readouterr().err
+    assert run.call_count == 1

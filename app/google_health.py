@@ -20,6 +20,44 @@ class GoogleHealthError(RuntimeError):
     """A safe diagnostic that never includes provider bodies or credentials."""
 
 
+def error_reason(response: requests.Response) -> str:
+    """Return only recognised Google error labels; never provider text or metadata."""
+    try:
+        payload = response.json() if len(response.content) <= 16384 else {}
+    except ValueError:
+        return "unknown"
+    error = payload.get("error", {}) if isinstance(payload, dict) else {}
+    if not isinstance(error, dict):
+        return "unknown"
+    details = error.get("details", [])
+    if isinstance(details, list):
+        for detail in details:
+            reason = detail.get("reason") if isinstance(detail, dict) else None
+            if isinstance(reason, str) and reason in {
+                "SERVICE_DISABLED",
+                "ACCESS_TOKEN_SCOPE_INSUFFICIENT",
+                "ACCOUNT_NOT_LINKED",
+                "BILLING_DISABLED",
+            }:
+                return reason
+    message = error.get("message", "")
+    if isinstance(message, str) and "could not mint ubermint from gaiamint" in message.lower():
+        return "ACCOUNT_SIGN_IN_REQUIRED"
+    status = error.get("status")
+    return (
+        status
+        if isinstance(status, str)
+        and status
+        in {
+            "PERMISSION_DENIED",
+            "UNAUTHENTICATED",
+            "FAILED_PRECONDITION",
+            "RESOURCE_EXHAUSTED",
+        }
+        else "unknown"
+    )
+
+
 def nonnegative_integer(value: object) -> int:
     if type(value) is int and value >= 0:
         return value
@@ -57,12 +95,15 @@ class GoogleHealthClient:
         load_dotenv()
         return cls(*(os.environ.get(key, "") for key in SECRET_NAMES))
 
-    def request(self, method: str, path: str, **kwargs) -> dict:
+    def authenticate(self) -> None:
         if not self.credentials.valid:
             try:
                 self.credentials.refresh(partial(Request(session=self.session), timeout=30))
             except GoogleAuthError:
                 raise GoogleHealthError("Google Health token refresh failed; reauthorise Google access") from None
+
+    def request(self, method: str, path: str, **kwargs) -> dict:
+        self.authenticate()
         try:
             result = self.session.request(
                 method,
@@ -75,7 +116,14 @@ class GoogleHealthClient:
         except requests.RequestException as error:
             raise GoogleHealthError(f"Google Health request failed: {type(error).__name__}") from None
         if result.status_code != 200:
-            raise GoogleHealthError(f"Google Health request returned HTTP {result.status_code}")
+            operation = {
+                "identity": "identity",
+                "dataTypes/steps/dataPoints:dailyRollUp": "steps",
+                "dataTypes/sleep/dataPoints:reconcile": "sleep",
+            }.get(path, "request")
+            raise GoogleHealthError(
+                f"Google Health {operation} returned HTTP {result.status_code} (reason: {error_reason(result)})"
+            )
         try:
             payload = result.json()
         except ValueError:

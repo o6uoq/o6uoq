@@ -36,11 +36,7 @@ def main() -> None:
                 refresh_token = getpass("Google refresh token (hidden): ").strip()
         values = (client_id, client_secret, refresh_token)
         client = GoogleHealthClient(*values)
-        identity = client.request("GET", "identity")
-        if not identity.get("healthUserId"):
-            raise GoogleHealthError("Google Health account identity could not be verified")
-        steps, sleep = client.summary()
-        print(f"Google Health access verified: {steps} steps; {sleep} sleep today.")
+        client.authenticate()
         if env_file.is_symlink():
             raise GoogleHealthError("Refusing to write credentials through a symlink")
         descriptor = os.open(env_file, os.O_WRONLY | os.O_CREAT, 0o600)
@@ -48,6 +44,12 @@ def main() -> None:
         env_file.chmod(0o600)
         for key, value in zip(SECRET_NAMES, values, strict=True):
             set_key(str(env_file), key, value)
+        print("Google OAuth accepted; credentials saved privately.")
+        identity = client.request("GET", "identity")
+        if not identity.get("healthUserId"):
+            raise GoogleHealthError("Google Health account identity could not be verified")
+        steps, sleep = client.summary()
+        print(f"Google Health access verified: {steps} steps; {sleep} sleep today.")
         for key, value in zip(SECRET_NAMES, values, strict=True):
             subprocess.run(["gh", "secret", "set", key, "--repo", "o6uoq/o6uoq"], input=value, text=True, check=True)
         print(f"Credentials saved privately in {env_file}; three Google Health repository secrets updated.")
