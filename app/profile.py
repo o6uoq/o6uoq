@@ -37,6 +37,8 @@ def mark_unavailable(text: str, prefix: str) -> str:
                     line = prefix + "Workouts unavailable. </samp><br>"
                 else:
                     line = line.removesuffix(note).removesuffix(strava_note) + strava_note
+            elif not line.endswith(note):
+                line += note
             return replace_line(text, prefix, line)
     return text
 
@@ -45,17 +47,19 @@ def update_profile(path: Path) -> int:
     text = path.read_text()
     failed = False
     try:
-        steps = fetch("fitbit", "fitbit-steps")
-        sleep = fetch("fitbit", "fitbit-sleep")
-        if len(steps) != 1 or len(sleep) != 1 or not steps[0].isdigit() or not re.fullmatch(r"\d+h \d+m", sleep[0]):
-            raise ValueError("Unexpected Fitbit output")
+        health = fetch("google_health", "google-health-summary")
+        if len(health) != 2 or not health[0].isdigit() or not re.fullmatch(r"\d+h \d+m", health[1]):
+            raise ValueError("Unexpected Google Health output")
+        steps, sleep = health
         text = replace_line(
             text,
             "- <samp> 🚶🏼‍♂️ ",
-            f"- <samp> 🚶🏼‍♂️ Today I have walked **{steps[0]}** steps and slept for **{sleep[0]}** </samp><br>",
+            f"- <samp> 🚶🏼‍♂️ Today I have walked **{steps}** steps and slept for **{sleep}** </samp><br>",
         )
     except (RuntimeError, ValueError, subprocess.TimeoutExpired) as error:
-        print(f"Fitbit update failed: {error}", file=sys.stderr)
+        print(f"Google Health update failed: {error}", file=sys.stderr)
+        text = mark_unavailable(text, "- <samp> 🚶🏼‍♂️ ")
+        text = text.replace("Today I have walked", "Last recorded: I walked", 1)
         failed = True
     try:
         workout = fetch("strava", "strava-latest-workout")

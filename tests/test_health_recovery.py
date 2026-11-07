@@ -99,8 +99,8 @@ def test_strava_cli_refresh_failure_is_nonzero(monkeypatch):
     assert error.value.code == 1
 
 
-@pytest.mark.parametrize("failed_command", ["fitbit-steps", "fitbit-sleep"])
-def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, tmp_path, failed_command):
+def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, tmp_path):
+    failed_command = "google-health-summary"
     from app.profile import update_profile
 
     readme = tmp_path / "README.md"
@@ -115,8 +115,7 @@ def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, 
         if command[-1] == failed_command:
             return subprocess.CompletedProcess(command, 1, "", "unavailable")
         data = {
-            "fitbit-steps": "123\n",
-            "fitbit-sleep": "7h 12m\n",
+            "google-health-summary": "123\n7h 12m\n",
             "strava-latest-workout": "Ride & | \\ trail\n1h 02m\n",
         }
         return subprocess.CompletedProcess(command, 0, data[command[-1]], "")
@@ -125,11 +124,8 @@ def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, 
     assert update_profile(readme) == 1
     result = readme.read_text()
     assert "**old** steps" in result
-    assert (
-        result.splitlines()[0] == "- <samp> 🚶🏼‍♂️ Today I have walked **old** steps and slept for **old** </samp><br>"
-    )
-    assert "Last recorded:" not in result
-    assert "Update unavailable" not in result
+    assert "Last recorded: I walked **old** steps" in result
+    assert result.count("Update unavailable; previous data shown") == 1
     assert "Ride & | \\ trail" in result
     assert result.endswith("Other text\n")
     assert calls.count("strava-latest-workout") == 1
@@ -164,7 +160,7 @@ def test_profile_preserves_strava_and_recovers_stale_fitbit(monkeypatch, tmp_pat
     )
 
     def run(command, **kwargs):
-        data = {"fitbit-steps": "123\n", "fitbit-sleep": "7h 12m\n"}
+        data = {"google-health-summary": "123\n7h 12m\n"}
         cmd = command[-1]
         return subprocess.CompletedProcess(command, 0 if cmd in data else 1, data.get(cmd, ""), "")
 
@@ -242,7 +238,7 @@ def test_workout_failure_has_friendly_message_and_recovers(monkeypatch, tmp_path
     failed = True
 
     def run(command, **kwargs):
-        data = {"fitbit-steps": "2\n", "fitbit-sleep": "7h 0m\n", "strava-latest-workout": "Ride\n45m\n"}
+        data = {"google-health-summary": "2\n7h 0m\n", "strava-latest-workout": "Ride\n45m\n"}
         error = failed and command[-1] == "strava-latest-workout"
         return subprocess.CompletedProcess(command, int(error), "" if error else data[command[-1]], "")
 
@@ -266,7 +262,7 @@ def test_empty_workout_profile_is_friendly(monkeypatch, tmp_path):
         "- <samp> 🚶🏼‍♂️ Today I have walked **1** steps and slept for **7h 0m** </samp><br>\n"
         "- <samp> 🏋🏼‍♂️ Workouts unavailable. </samp><br>\n"
     )
-    data = {"fitbit-steps": "2\n", "fitbit-sleep": "7h 0m\n", "strava-latest-workout": "No Activity\n0m\n"}
+    data = {"google-health-summary": "2\n7h 0m\n", "strava-latest-workout": "No Activity\n0m\n"}
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, data[cmd[-1]], ""))
     assert update_profile(path) == 0
     assert "No workouts yet." in path.read_text()
