@@ -2,7 +2,6 @@
 OAuth Manager for fitness APIs.
 """
 
-import base64
 import json
 import logging
 import os
@@ -50,20 +49,12 @@ class OAuthManager:
         """Load service-specific configuration from environment."""
         prefix = self.service_name.upper()
 
-        # Service-specific endpoints and requirements
-        if self.service_name == "fitbit":
-            self.auth_uri = "https://www.fitbit.com/oauth2/authorize"
-            self.token_uri = "https://api.fitbit.com/oauth2/token"
-            self.scope = "activity%20sleep"
-            self.use_basic_auth = True
-        elif self.service_name == "strava":
-            self.auth_uri = "https://www.strava.com/oauth/authorize"
-            self.token_uri = "https://www.strava.com/oauth/token"
-            self.scope = "activity:read"
-            self.use_basic_auth = False
-        else:
+        if self.service_name != "strava":
             logger.error(f"Unsupported service: {self.service_name}")
             raise ValueError(f"Unsupported service: {self.service_name}")
+        self.auth_uri = "https://www.strava.com/oauth/authorize"
+        self.token_uri = "https://www.strava.com/oauth/token"
+        self.scope = "activity:read"
 
         # Load environment variables
         self.client_id = os.environ.get(f"{prefix}_CLIENT_ID")
@@ -103,13 +94,8 @@ class OAuthManager:
 
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-        if self.use_basic_auth:
-            auth_str = f"{self.client_id}:{self.client_secret}"
-            auth_b64 = base64.b64encode(auth_str.encode()).decode()
-            headers["Authorization"] = f"Basic {auth_b64}"
-        else:
-            data["client_id"] = self.client_id
-            data["client_secret"] = self.client_secret
+        data["client_id"] = self.client_id
+        data["client_secret"] = self.client_secret
 
         token_response = requests.post(self.token_uri, headers=headers, data=data, timeout=30)
         response = token_response.json()
@@ -210,13 +196,8 @@ class OAuthManager:
 
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-        if self.use_basic_auth:
-            auth_str = f"{self.client_id}:{self.client_secret}"
-            auth_b64 = base64.b64encode(auth_str.encode()).decode()
-            headers["Authorization"] = f"Basic {auth_b64}"
-        else:
-            data["client_id"] = self.client_id
-            data["client_secret"] = self.client_secret
+        data["client_id"] = self.client_id
+        data["client_secret"] = self.client_secret
 
         response = requests.post(self.token_uri, headers=headers, data=data, timeout=30)
 

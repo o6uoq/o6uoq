@@ -1,7 +1,7 @@
 [project]
 name = "fitness-cli"
 version = "1.0.0"
-description = "CLI tools for Fitbit and Strava APIs"
+description = "CLI tools for Google Health and Strava"
 requires-python = ">=3.14"
 dependencies = [
     "requests>=2.32.0",

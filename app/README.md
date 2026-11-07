@@ -1,7 +1,7 @@
 # Health Profile Updater
 
 Google Health supplies steps and sleep; the signed-in Strava website supplies your newest workout.
-The legacy Fitbit Web API and OAuth endpoints were retired on 2 November 2026. The old Fitbit CLI and recovery script cannot restore access.
+The legacy Fitbit Web API and OAuth endpoints were retired on 2 November 2026. This repository now uses Google Health; the retired Fitbit integration and recovery script have been removed.
 
 ## Google Health setup
 
@@ -47,7 +47,7 @@ For local Google Health reads, set the same three environment variables (or put 
 uv run python -m app.google_health
 ```
 
-API requests have 30-second timeouts. Errors name the identity, steps or sleep request and report recognised Google reasons such as `SERVICE_DISABLED` or `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. OAuth failures report recognised codes such as `invalid_grant` or `invalid_client`; a transport failure is identified separately. Raw OAuth/API bodies, messages and credentials are never logged. Check the reported OAuth code and client/token pairing before deciding to reauthorise; a failed exchange does not by itself prove expiry. The retired Fitbit recovery script cannot repair Google access.
+API requests have 30-second timeouts. Errors name the identity, steps or sleep request and report recognised Google reasons such as `SERVICE_DISABLED` or `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. OAuth failures report recognised codes such as `invalid_grant` or `invalid_client`; a transport failure is identified separately. Raw OAuth/API bodies, messages and credentials are never logged. Check the reported OAuth code and client/token pairing before deciding to reauthorise; a failed exchange does not by itself prove expiry.
 
 ## Strava
 
@@ -84,4 +84,4 @@ gh run watch <run-id> --exit-status
 gh run view <run-id> --log-failed
 ```
 
-Old Fitbit secrets/artifacts are not read by the new workflow. Do not delete stored credentials as part of the migration until real Google Health access and the production run have been verified.
+The workflow reads only the three Google Health credentials and the two Strava login credentials listed above. It does not read legacy Fitbit secrets or token artifacts.
