@@ -6,21 +6,14 @@ on:
   schedule:
     - cron: '0 */4 * * *'
   workflow_dispatch:
-    inputs:
-      skip_artifact:
-        description: 'Use fresh Fitbit secrets; bypass cached tokens for this recovery run'
-        required: false
-        default: false
-        type: boolean
 
-# Token rotation must finish before another run consumes the updated artifacts.
+# Serialise profile commits.
 concurrency:
   group: health-profile
   cancel-in-progress: false
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
   build-and-run:
@@ -31,92 +24,24 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v7
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Create environment file
-      run: |
-        cat << EOF > .env
-        ### Fitbit environment variables
-        FITBIT_AUTH_URI=${{ vars.FITBIT_AUTH_URI }}
-        FITBIT_EXPIRES_AT=${{ vars.FITBIT_EXPIRES_AT }}
-        FITBIT_REDIRECT_URI=${{ vars.FITBIT_REDIRECT_URI }}
-        FITBIT_TOKEN_REQUEST_URI=${{ vars.FITBIT_TOKEN_REQUEST_URI }}
-        ### Fitbit secrets
-        FITBIT_ACCESS_TOKEN=${{ secrets.FITBIT_ACCESS_TOKEN }}
-        FITBIT_CLIENT_ID=${{ secrets.FITBIT_CLIENT_ID }}
-        FITBIT_CLIENT_SECRET=${{ secrets.FITBIT_CLIENT_SECRET }}
-        FITBIT_REFRESH_TOKEN=${{ secrets.FITBIT_REFRESH_TOKEN }}
-        EOF
-
-    - name: Find latest Fitbit tokens
-      id: tokens
-      if: inputs.skip_artifact != true
-      uses: actions/github-script@v9
-      with:
-        script: |
-          // Artifact list order and IDs do not identify the latest rotation.
-          // Reruns can upload multiple artifacts with the same name and run ID.
-          let latest;
-          for await (const response of github.paginate.iterator(github.rest.actions.listArtifactsForRepo, {
-            owner: context.repo.owner, repo: context.repo.repo, per_page: 100
-          })) {
-            for (const artifact of response.data) {
-              if (artifact.name === 'fitbit-tokens' && !artifact.expired && artifact.workflow_run?.head_branch === 'main') {
-                if (!latest || artifact.created_at > latest.created_at) latest = artifact;
-              }
-            }
-          }
-          if (latest) {
-            core.setOutput('fitbit_artifact', latest.id);
-          }
-
-    - name: Download Fitbit tokens
-      id: download_fitbit
-      if: steps.tokens.outputs.fitbit_artifact != ''
-      continue-on-error: true
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh api "repos/${{ github.repository }}/actions/artifacts/${{ steps.tokens.outputs.fitbit_artifact }}/zip" > fitbit_tokens.zip
-        unzip -oq fitbit_tokens.zip
-        rm fitbit_tokens.zip
-
-    - name: Report token download failures
-      if: steps.download_fitbit.outcome == 'failure'
-      run: echo "::warning::Token artifact download failed; falling back to repository secrets."
-
-    - name: Restore Fitbit tokens
-      run: |
-        if [ -f fitbit_tokens.json ]; then
-          FITBIT_ACCESS_TOKEN=$(jq -r '.FITBIT_ACCESS_TOKEN' fitbit_tokens.json)
-          FITBIT_REFRESH_TOKEN=$(jq -r '.FITBIT_REFRESH_TOKEN' fitbit_tokens.json)
-          FITBIT_EXPIRES_AT=$(jq -r '.FITBIT_EXPIRES_AT' fitbit_tokens.json)
-
-          {
-            printf '%s\n' "FITBIT_ACCESS_TOKEN=$FITBIT_ACCESS_TOKEN"
-            printf '%s\n' "FITBIT_REFRESH_TOKEN=$FITBIT_REFRESH_TOKEN"
-            printf '%s\n' "FITBIT_EXPIRES_AT=$FITBIT_EXPIRES_AT"
-          } >> .env
-        else
-          echo "[WARN] fitbit_tokens.json not found, skipping .env update."
-        fi
 
     - name: Build Docker image
       run: docker build -t fitness-cli .
-
-    - name: Refresh Fitbit tokens
-      id: fitbit_tokens
-      run: docker run --env-file .env -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.fitbit fitbit-tokens
-      continue-on-error: true
 
     - name: Update profile from available services
       id: profile
       continue-on-error: true
       env:
+        GOOGLE_HEALTH_CLIENT_ID: ${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+        GOOGLE_HEALTH_CLIENT_SECRET: ${{ secrets.GOOGLE_HEALTH_CLIENT_SECRET }}
+        GOOGLE_HEALTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_HEALTH_REFRESH_TOKEN }}
         STRAVA_LOGIN: ${{ secrets.STRAVA_LOGIN }}
         STRAVA_PASSWORD: ${{ secrets.STRAVA_PASSWORD }}
-      run: docker run --rm --init --shm-size=256m --env-file .env -e STRAVA_LOGIN -e STRAVA_PASSWORD -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.profile
+      run: >-
+        docker run --rm --init --shm-size=256m
+        -e GOOGLE_HEALTH_CLIENT_ID -e GOOGLE_HEALTH_CLIENT_SECRET -e GOOGLE_HEALTH_REFRESH_TOKEN
+        -e STRAVA_LOGIN -e STRAVA_PASSWORD
+        -v ${{ github.workspace }}:/app fitness-cli uv run python -m app.profile
 
     - name: Commit and push changes
       run: |
@@ -127,29 +52,15 @@ jobs:
           git commit -m "🔄 ci: updating README with health data"
           git push
         fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Report service failures
-      if: always() && (steps.fitbit_tokens.outcome == 'failure' || steps.profile.outcome == 'failure')
+      if: always() && steps.profile.outcome == 'failure'
       run: |
         echo "::error::Health update incomplete; failed services retain previous data."
         {
           echo "## Health update"
-          echo "- Fitbit token refresh: ${{ steps.fitbit_tokens.outcome }}"
           echo "- Profile update: ${{ steps.profile.outcome }}"
-          if [ "${{ steps.fitbit_tokens.outcome }}" = "failure" ]; then
-            echo ''
-            echo 'Fitbit `invalid_grant`: run `./scripts/refresh-fitbit-secrets.sh --dispatch` locally and complete browser consent.'
-          fi
-          echo 'Other errors: check the failed service log. See app/README.md.'
+          echo 'Check the failed service log. Google Health access needs Google OAuth consent; legacy Fitbit reauthorisation cannot repair it.'
+          echo 'See app/README.md for setup and recovery.'
         } >> "$GITHUB_STEP_SUMMARY"
         exit 1
-
-    - name: Save Fitbit tokens
-      if: always() && steps.fitbit_tokens.outcome == 'success'
-      uses: actions/upload-artifact@v7
-      with:
-        name: fitbit-tokens
-        path: fitbit_tokens.json
-        if-no-files-found: warn

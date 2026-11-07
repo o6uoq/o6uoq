@@ -1,0 +1,277 @@
+import json
+from datetime import date
+from unittest.mock import Mock
+
+import pytest
+import requests
+
+from app.google_health import GoogleHealthClient, GoogleHealthError
+
+DAY = date(2026, 11, 6)
+
+
+def response(payload, status=200):
+    result = requests.Response()
+    result.status_code = status
+    result._content = json.dumps(payload).encode()
+    result.headers["content-type"] = "application/json"
+    return result
+
+
+def rollup(count="123"):
+    return {
+        "rollupDataPoints": [
+            {
+                "civilStartTime": {"date": {"year": 2026, "month": 11, "day": 6}, "time": {}},
+                "civilEndTime": {"date": {"year": 2026, "month": 11, "day": 7}, "time": {"hours": 0}},
+                "steps": {"countSum": count},
+            }
+        ]
+    }
+
+
+@pytest.fixture
+def client(monkeypatch):
+    session = Mock()
+    monkeypatch.setattr(requests, "Session", lambda: session)
+    instance = GoogleHealthClient("client-id", "client-secret", "refresh-private")
+    return instance, session
+
+
+def replies(session, *payloads):
+    session.request.side_effect = [response({"access_token": "access-private", "expires_in": 3600})] + [
+        response(payload) for payload in payloads
+    ]
+
+
+def test_daily_rollup_and_paginated_reconciled_sleep(client):
+    instance, session = client
+    replies(
+        session,
+        rollup("0"),
+        {"dataPoints": [{"sleep": {"summary": {"minutesAsleep": "455"}}}], "nextPageToken": "next"},
+        {"dataPoints": [{"sleep": {"summary": {"minutesAsleep": "17"}}}]},
+    )
+    assert instance.summary(DAY) == (0, "7h 52m")
+    calls = session.request.call_args_list
+    assert len(calls) == 4
+    assert calls[0].args[1] == "https://oauth2.googleapis.com/token"
+    assert calls[0].kwargs["timeout"] == 30
+    assert calls[1].args == ("POST", "https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints:dailyRollUp")
+    assert calls[1].kwargs["json"] == {
+        "range": {
+            "start": {"date": {"year": 2026, "month": 11, "day": 6}},
+            "end": {"date": {"year": 2026, "month": 11, "day": 7}},
+        },
+        "windowSizeDays": 1,
+    }
+    expected_filter = 'sleep.interval.civil_end_time >= "2026-11-06" AND sleep.interval.civil_end_time < "2026-11-07"'
+    assert calls[2].kwargs["params"] == {"filter": expected_filter, "pageSize": 25}
+    assert calls[3].kwargs["params"] == {"filter": expected_filter, "pageSize": 25, "pageToken": "next"}
+    assert calls[1].kwargs["headers"]["Authorization"] == "Bearer access-private"
+    assert calls[1].kwargs["allow_redirects"] is False
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"rollupDataPoints": []},
+        {"rollupDataPoints": [{}]},
+        rollup("-1"),
+        rollup(True),
+        rollup("1.5"),
+    ],
+)
+def test_unobserved_or_invalid_steps_do_not_become_zero(client, payload):
+    instance, session = client
+    replies(session, payload)
+    with pytest.raises(GoogleHealthError):
+        instance.summary(DAY)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"dataPoints": []},
+        {"dataPoints": [{"sleep": {"summary": {}}}]},
+    ],
+)
+def test_missing_sleep_does_not_become_zero(client, payload):
+    instance, session = client
+    replies(session, rollup(), payload)
+    with pytest.raises(GoogleHealthError):
+        instance.summary(DAY)
+
+
+@pytest.mark.parametrize(
+    "payload,reason",
+    [
+        (
+            {
+                "error": {
+                    "status": "PERMISSION_DENIED",
+                    "message": "access-private",
+                    "details": [{"reason": "SERVICE_DISABLED", "metadata": {"private": "refresh-private"}}],
+                }
+            },
+            "SERVICE_DISABLED",
+        ),
+        (
+            {"error": {"status": "PERMISSION_DENIED", "details": [{"reason": "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}},
+            "ACCESS_TOKEN_SCOPE_INSUFFICIENT",
+        ),
+        ({"error": {"status": "PERMISSION_DENIED", "details": [{"reason": "PRIVATE_SECRET"}]}}, "PERMISSION_DENIED"),
+        ({"error": {"message": "Could not mint UberMint from GaiaMint."}}, "ACCOUNT_SIGN_IN_REQUIRED"),
+        (["access-private"], "unknown"),
+    ],
+)
+def test_http_error_names_operation_and_safe_reason(client, payload, reason):
+    instance, session = client
+    session.request.side_effect = [
+        response({"access_token": "access-private", "expires_in": 3600}),
+        response(payload, 403),
+    ]
+    with pytest.raises(GoogleHealthError, match="identity returned HTTP 403") as error:
+        instance.request("GET", "identity")
+    assert f"reason: {reason}" in str(error.value)
+    assert not any(value in str(error.value) for value in ("access-private", "refresh-private", "PRIVATE_SECRET"))
+
+
+@pytest.mark.parametrize("code", ["invalid_grant", "invalid_client"])
+def test_refresh_error_redacts_provider_body(client, code):
+    instance, session = client
+    session.request.return_value = response({"error": code, "error_description": "refresh-private"}, 400)
+    with pytest.raises(GoogleHealthError, match="token refresh failed") as error:
+        instance.summary(DAY)
+    assert "refresh-private" not in str(error.value)
+    assert f"reason: {code}" in str(error.value)
+    assert session.request.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "observed",
+    [
+        {"date": {"year": 2026, "month": 11, "day": 5}},
+        {"date": {"year": 2026, "month": 11, "day": 6}, "time": {"hours": 1}},
+    ],
+)
+def test_wrong_date_or_partial_day_is_not_published(client, observed):
+    instance, session = client
+    payload = rollup()
+    payload["rollupDataPoints"][0]["civilStartTime"] = observed
+    replies(session, payload)
+    with pytest.raises(GoogleHealthError, match="date range"):
+        instance.summary(DAY)
+
+
+@pytest.mark.parametrize("unavailable", [False, True])
+@pytest.mark.parametrize("source", ["json", "env", "env-reauthorize"])
+def test_setup_checks_access_before_setting_github_secrets(monkeypatch, tmp_path, capsys, unavailable, source):
+    import subprocess
+
+    from scripts import configure_google_health as setup
+
+    registration = tmp_path / "client.json"
+    registration.write_text(json.dumps({"web": {"client_id": "client-id", "client_secret": "client-private"}}))
+    env_file = tmp_path / ".env"
+    env_file.write_text("STRAVA_PASSWORD='keep-private'\n")
+    arguments = ["setup", "--env-file", str(env_file)]
+    if source == "json":
+        arguments.append(str(registration))
+    else:
+        initial_token = "refresh-old" if source == "env-reauthorize" else "refresh-private"
+        env_file.write_text(
+            env_file.read_text()
+            + (
+                "GOOGLE_HEALTH_CLIENT_ID='client-id'\nGOOGLE_HEALTH_CLIENT_SECRET='client-private'\n"
+                f"GOOGLE_HEALTH_REFRESH_TOKEN='{initial_token}'\n"
+            )
+        )
+        if source == "env-reauthorize":
+            arguments.append("--reauthorize")
+    monkeypatch.setattr("sys.argv", arguments)
+
+    def prompt(_):
+        assert source != "env", "Existing refresh token must be reused without a prompt"
+        return "refresh-private"
+
+    monkeypatch.setattr(setup, "getpass", prompt)
+    fake_client = Mock()
+    fake_client.request.return_value = {"healthUserId": "user-id"}
+    fake_client.summary.return_value = (123, "7h 52m")
+    if unavailable:
+        fake_client.request.side_effect = GoogleHealthError("Google Health identity returned HTTP 403")
+    monkeypatch.setattr(setup, "GoogleHealthClient", Mock(return_value=fake_client))
+    run = Mock(return_value=subprocess.CompletedProcess([], 0))
+    monkeypatch.setattr(subprocess, "run", run)
+    if unavailable:
+        with pytest.raises(SystemExit) as error:
+            setup.main()
+        assert error.value.code == 1
+        assert run.call_count == 1
+    else:
+        setup.main()
+        calls = run.call_args_list[1:]
+        assert [call.kwargs["input"] for call in calls] == ["client-id", "client-private", "refresh-private"]
+        assert [call.args[0][3] for call in calls] == [
+            "GOOGLE_HEALTH_CLIENT_ID",
+            "GOOGLE_HEALTH_CLIENT_SECRET",
+            "GOOGLE_HEALTH_REFRESH_TOKEN",
+        ]
+        assert all("refresh-private" not in call.args[0] for call in calls)
+    from dotenv import dotenv_values
+
+    stored = dotenv_values(env_file)
+    assert stored["GOOGLE_HEALTH_REFRESH_TOKEN"] == "refresh-private"
+    assert stored["STRAVA_PASSWORD"] == "keep-private"
+    assert env_file.stat().st_mode & 0o777 == 0o600
+    output = capsys.readouterr()
+    assert "refresh-private" not in output.out + output.err
+    assert "client-private" not in output.out + output.err
+
+
+def test_setup_stops_if_hidden_input_is_unavailable(monkeypatch, tmp_path, capsys):
+    import warnings
+    from getpass import GetPassWarning
+
+    from scripts import configure_google_health as setup
+
+    registration = tmp_path / "client.json"
+    registration.write_text(json.dumps({"web": {"client_id": "id", "client_secret": "client-private"}}))
+    monkeypatch.setattr("sys.argv", ["setup", str(registration), "--env-file", str(tmp_path / ".env")])
+    run = Mock()
+    monkeypatch.setattr(setup.subprocess, "run", run)
+
+    def unsafe_prompt(prompt):
+        warnings.warn("Cannot disable echo", GetPassWarning)
+        pytest.fail("Must stop before falling back to echoed input")
+
+    monkeypatch.setattr(setup, "getpass", unsafe_prompt)
+    with pytest.raises(SystemExit) as error:
+        setup.main()
+    assert error.value.code == 1
+    assert run.call_count == 1
+    assert "interactive terminal" in capsys.readouterr().err
+
+
+def test_rejected_oauth_does_not_replace_local_credentials(monkeypatch, tmp_path, capsys):
+    from scripts import configure_google_health as setup
+
+    env_file = tmp_path / ".env"
+    original = "GOOGLE_HEALTH_CLIENT_ID=id\nGOOGLE_HEALTH_CLIENT_SECRET=secret\nGOOGLE_HEALTH_REFRESH_TOKEN=old\n"
+    env_file.write_text(original)
+    monkeypatch.setattr("sys.argv", ["setup", "--env-file", str(env_file), "--reauthorize"])
+    monkeypatch.setattr(setup, "getpass", lambda _: "new-private")
+    client = Mock()
+    client.authenticate.side_effect = GoogleHealthError("Google Health token refresh failed")
+    monkeypatch.setattr(setup, "GoogleHealthClient", Mock(return_value=client))
+    run = Mock()
+    monkeypatch.setattr(setup.subprocess, "run", run)
+    with pytest.raises(SystemExit) as error:
+        setup.main()
+    assert error.value.code == 1
+    assert env_file.read_text() == original
+    assert "token refresh failed" in capsys.readouterr().err
+    assert run.call_count == 1
