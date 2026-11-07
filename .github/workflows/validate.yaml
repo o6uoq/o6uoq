@@ -27,7 +27,7 @@ jobs:
       - name: Container smoke test
         run: |
           docker build -t fitness-cli:test .
-          docker run --rm --network none -v "${{ github.workspace }}:/app" fitness-cli:test uv run python -c "import app.fitbit, app.strava, app.profile; import importlib.util; assert importlib.util.find_spec('pytest') is None"
+          docker run --rm --network none -v "${{ github.workspace }}:/app" fitness-cli:test uv run python -c "import app.google_health, app.strava, app.profile; import importlib.util; assert importlib.util.find_spec('pytest') is None"
           docker run --rm --init --shm-size=256m --network none fitness-cli:test uv run python -c "from camoufox.sync_api import Camoufox; c = Camoufox(headless='virtual', os='linux'); b = c.__enter__(); p = b.new_page(); p.goto('about:blank'); c.__exit__(None, None, None)"
       - name: Verify Strava website on a GitHub runner
         if: github.event_name == 'workflow_dispatch'
