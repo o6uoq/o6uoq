@@ -142,15 +142,38 @@ def test_wrong_date_or_partial_day_is_not_published(client, observed):
 
 
 @pytest.mark.parametrize("unavailable", [False, True])
-def test_setup_checks_access_before_setting_secrets(monkeypatch, tmp_path, capsys, unavailable):
+@pytest.mark.parametrize("source", ["json", "env", "env-reauthorize"])
+def test_setup_checks_access_before_setting_secrets(monkeypatch, tmp_path, capsys, unavailable, source):
     import subprocess
 
     from scripts import configure_google_health as setup
 
     registration = tmp_path / "client.json"
     registration.write_text(json.dumps({"web": {"client_id": "client-id", "client_secret": "client-private"}}))
-    monkeypatch.setattr("sys.argv", ["setup", str(registration)])
-    monkeypatch.setattr(setup, "getpass", lambda prompt: "refresh-private")
+    env_file = tmp_path / ".env"
+    env_file.write_text("STRAVA_PASSWORD='keep-private'\n")
+    arguments = ["setup", "--env-file", str(env_file)]
+    if source == "json":
+        arguments.append(str(registration))
+    else:
+        initial_token = "refresh-old" if source == "env-reauthorize" else "refresh-private"
+        env_file.write_text(
+            env_file.read_text()
+            + (
+                "GOOGLE_HEALTH_CLIENT_ID='client-id'\nGOOGLE_HEALTH_CLIENT_SECRET='client-private'\n"
+                f"GOOGLE_HEALTH_REFRESH_TOKEN='{initial_token}'\n"
+            )
+        )
+        if source == "env-reauthorize":
+            arguments.append("--reauthorize")
+    original_env = env_file.read_text()
+    monkeypatch.setattr("sys.argv", arguments)
+
+    def prompt(_):
+        assert source != "env", "Existing refresh token must be reused without a prompt"
+        return "refresh-private"
+
+    monkeypatch.setattr(setup, "getpass", prompt)
     fake_client = Mock()
     fake_client.request.return_value = {"healthUserId": "user-id"}
     fake_client.summary.return_value = (123, "7h 52m")
@@ -164,6 +187,7 @@ def test_setup_checks_access_before_setting_secrets(monkeypatch, tmp_path, capsy
             setup.main()
         assert error.value.code == 1
         assert run.call_count == 1
+        assert env_file.read_text() == original_env
     else:
         setup.main()
         calls = run.call_args_list[1:]
@@ -174,6 +198,12 @@ def test_setup_checks_access_before_setting_secrets(monkeypatch, tmp_path, capsy
             "GOOGLE_HEALTH_REFRESH_TOKEN",
         ]
         assert all("refresh-private" not in call.args[0] for call in calls)
+        from dotenv import dotenv_values
+
+        stored = dotenv_values(env_file)
+        assert stored["GOOGLE_HEALTH_REFRESH_TOKEN"] == "refresh-private"
+        assert stored["STRAVA_PASSWORD"] == "keep-private"
+        assert env_file.stat().st_mode & 0o777 == 0o600
     output = capsys.readouterr()
     assert "refresh-private" not in output.out + output.err
     assert "client-private" not in output.out + output.err
@@ -187,7 +217,7 @@ def test_setup_stops_if_hidden_input_is_unavailable(monkeypatch, tmp_path, capsy
 
     registration = tmp_path / "client.json"
     registration.write_text(json.dumps({"web": {"client_id": "id", "client_secret": "client-private"}}))
-    monkeypatch.setattr("sys.argv", ["setup", str(registration)])
+    monkeypatch.setattr("sys.argv", ["setup", str(registration), "--env-file", str(tmp_path / ".env")])
     run = Mock()
     monkeypatch.setattr(setup.subprocess, "run", run)
 

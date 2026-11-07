@@ -18,15 +18,15 @@ The legacy Fitbit Web API and OAuth endpoints were retired on 2 November 2026. T
 uv run python -m scripts.configure_google_health /path/to/downloaded-client.json
 ```
 
-Paste the refresh token at the hidden prompt. The helper verifies your linked health account and today's steps/sleep before setting these repository secrets through stdin:
+Paste the refresh token at the hidden prompt. Later runs can omit the JSON path and reuse the credentials saved in `.env`; use `--reauthorize` to enter a replacement token. Use `--env-file /path/to/.env` to select a different local credential file. The helper verifies your linked health account and today's steps/sleep before setting these repository secrets through stdin:
 
 - `GOOGLE_HEALTH_CLIENT_ID`
 - `GOOGLE_HEALTH_CLIENT_SECRET`
 - `GOOGLE_HEALTH_REFRESH_TOKEN`
 
-Requires authenticated `gh` with secret-write access to `o6uoq/o6uoq`. The helper does not save credentials locally, change OAuth publishing status or dispatch a workflow.
+Requires authenticated `gh` with secret-write access to `o6uoq/o6uoq`. The helper stores the three credentials in an owner-only local `.env`, and sends them to GitHub through stdin. It does not change OAuth publishing status or dispatch a workflow. Keep `.env` private and ignored.
 
-**Testing-mode refresh tokens expire after seven days.** Before unattended use, move the OAuth app to **In production**, then authorise again and rerun the helper with the final token. Personal-only apps can qualify for Google's verification exception; follow the console requirements for your project.
+**Testing-mode refresh tokens expire after seven days.** Before unattended use, move the OAuth app to **In production**, then authorise again and rerun the helper with `--reauthorize` to store the final token. Personal-only apps can qualify for Google's verification exception; follow the console requirements for your project.
 
 See [Google's migration guide](https://developers.google.com/health/migration), [setup](https://developers.google.com/health/setup) and [personal-use verification exception](https://support.google.com/cloud/answer/13464323).
 
