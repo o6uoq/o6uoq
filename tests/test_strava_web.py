@@ -100,11 +100,11 @@ def test_website_preserves_original_api_and_profile_format(monkeypatch, capsys, 
         }[command],
     )
     readme = tmp_path / "README.md"
-    fitbit_line = "- <samp> 🚶🏼‍♂️ Today I have walked **282** steps and slept for **4h 53m** </samp><br>\n"
-    readme.write_text(fitbit_line + "- <samp> 🏋🏼‍♂️ Workouts unavailable. </samp><br>\n")
+    health_line = "- <samp> 🚶🏼‍♂️ Today I have walked **282** steps and slept for **4h 53m** </samp><br>\n"
+    readme.write_text(health_line + "- <samp> 🏋🏼‍♂️ Workouts unavailable. </samp><br>\n")
     assert profile.update_profile(readme) == 0
     assert readme.read_text() == (
-        fitbit_line + f"- <samp> 🏋🏼‍♂️ My last workout was **Lunch Workout** for **{duration}** </samp><br>\n"
+        health_line + f"- <samp> 🏋🏼‍♂️ My last workout was **Lunch Workout** for **{duration}** </samp><br>\n"
     )
 
 

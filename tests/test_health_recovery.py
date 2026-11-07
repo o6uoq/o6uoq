@@ -5,7 +5,6 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from app.fitbit_client import FitbitClient
 from app.oauth_manager import OAuthManager
 from app.strava_client import StravaClient
 
@@ -15,13 +14,10 @@ def oauth():
     return SimpleNamespace(access_token="test-access", ensure_valid_token=Mock())
 
 
-@pytest.mark.parametrize(
-    "client,method", [(FitbitClient, "get_steps"), (FitbitClient, "get_sleep"), (StravaClient, "get_latest_workout")]
-)
-def test_api_failure_propagates_without_fabricated_data(monkeypatch, capsys, oauth, client, method):
+def test_api_failure_propagates_without_fabricated_data(monkeypatch, capsys, oauth):
     monkeypatch.setattr(requests, "get", Mock(side_effect=requests.Timeout("timed out")))
     with pytest.raises(requests.RequestException):
-        getattr(client(oauth), method)()
+        StravaClient(oauth).get_latest_workout()
     assert capsys.readouterr().out == ""
 
 
@@ -45,8 +41,8 @@ def manager(monkeypatch, tmp_path):
         "REDIRECT_URI": "https://localhost",
         "REFRESH_TOKEN": "refresh-secret",
     }.items():
-        monkeypatch.setenv(f"FITBIT_{key}", value)
-    return OAuthManager("fitbit")
+        monkeypatch.setenv(f"STRAVA_{key}", value)
+    return OAuthManager("strava")
 
 
 def test_refresh_failure_does_not_log_credentials_or_write_artifact(monkeypatch, capsys, tmp_path, manager):
@@ -54,7 +50,7 @@ def test_refresh_failure_does_not_log_credentials_or_write_artifact(monkeypatch,
     response.json.return_value = {"errors": [{"errorType": "invalid_grant", "message": "refresh-secret"}]}
     monkeypatch.setattr(requests, "post", Mock(return_value=response))
     assert manager.manage_tokens() is False
-    assert not (tmp_path / "fitbit_tokens.json").exists()
+    assert not (tmp_path / "strava_tokens.json").exists()
     output = capsys.readouterr()
     assert "refresh-secret" not in output.out + output.err
     assert "invalid_grant" in output.err
@@ -73,7 +69,7 @@ def test_refresh_success_retains_rotated_tokens(monkeypatch, tmp_path, manager):
     post = Mock(return_value=response)
     monkeypatch.setattr(requests, "post", post)
     assert manager.manage_tokens()
-    assert "new-refresh" in (tmp_path / "fitbit_tokens.json").read_text()
+    assert "new-refresh" in (tmp_path / "strava_tokens.json").read_text()
     assert post.call_args.kwargs["timeout"] == 30
 
 
@@ -149,7 +145,7 @@ def test_workout_name_newline_stays_on_one_line(monkeypatch, oauth, capsys):
     assert capsys.readouterr().out == "Ride & trail\n1h 02m\n"
 
 
-def test_profile_preserves_strava_and_recovers_stale_fitbit(monkeypatch, tmp_path):
+def test_profile_preserves_strava_and_recovers_stale_health(monkeypatch, tmp_path):
     from app.profile import update_profile
 
     path = tmp_path / "README.md"
@@ -197,33 +193,6 @@ def test_authentication_error_redacts_code(monkeypatch, capsys, manager):
     output = capsys.readouterr()
     assert "sensitive-code" not in output.out + output.err
     assert "invalid_grant" in output.err
-
-
-@pytest.mark.parametrize("module,command", [("app.fitbit", "fitbit-steps")])
-def test_cli_http_failure_exit_and_safe_diagnostic(monkeypatch, capsys, module, command):
-    import runpy
-    import sys
-
-    oauth = SimpleNamespace(access_token="access", ensure_valid_token=lambda: None)
-    client = FitbitClient(oauth) if module.endswith("fitbit") else StravaClient(oauth)
-    monkeypatch.delitem(sys.modules, module, raising=False)
-    # runpy imports the client factories into a fresh CLI module.
-    monkeypatch.setattr("app.fitbit_client.create_fitbit_client", lambda: client)
-    monkeypatch.setattr("app.strava_client.create_strava_client", lambda: client)
-    monkeypatch.setattr(sys, "argv", [module, command])
-    response = Mock(status_code=403)
-    response.json.return_value = {
-        "errors": [{"resource": "Application", "field": "Status", "code": "Inactive", "message": "secret-token"}]
-    }
-    response.raise_for_status.side_effect = requests.HTTPError(response=response)
-    monkeypatch.setattr(requests, "get", Mock(return_value=response))
-    with pytest.raises(SystemExit) as error:
-        runpy.run_module(module, run_name="__main__")
-    assert error.value.code == 1
-    output = capsys.readouterr()
-    assert output.out == ""
-    assert "Inactive" in output.err
-    assert "secret-token" not in output.err
 
 
 @pytest.mark.parametrize("old_workout", ["My last workout was **No Activity** for **0m**", "No workouts yet."])
