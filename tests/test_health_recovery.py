@@ -95,7 +95,7 @@ def test_strava_cli_refresh_failure_is_nonzero(monkeypatch):
     assert error.value.code == 1
 
 
-def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, tmp_path):
+def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, tmp_path, capsys):
     failed_command = "google-health-summary"
     from app.profile import update_profile
 
@@ -121,7 +121,8 @@ def test_profile_preserves_failed_service_and_fetches_workout_once(monkeypatch, 
     result = readme.read_text()
     assert "**old** steps" in result
     assert "Last recorded: I walked **old** steps" in result
-    assert result.count("Update unavailable; previous data shown") == 1
+    assert "unavailable" not in result
+    assert "Google Health update failed" in capsys.readouterr().err
     assert "Ride & | \\ trail" in result
     assert result.endswith("Other text\n")
     assert calls.count("strava-latest-workout") == 1
@@ -145,7 +146,7 @@ def test_workout_name_newline_stays_on_one_line(monkeypatch, oauth, capsys):
     assert capsys.readouterr().out == "Ride & trail\n1h 02m\n"
 
 
-def test_profile_preserves_strava_and_recovers_stale_health(monkeypatch, tmp_path):
+def test_profile_preserves_strava_and_recovers_stale_health(monkeypatch, tmp_path, capsys):
     from app.profile import update_profile
 
     path = tmp_path / "README.md"
@@ -164,9 +165,11 @@ def test_profile_preserves_strava_and_recovers_stale_health(monkeypatch, tmp_pat
     assert update_profile(path) == 1
     assert "**123** steps" in path.read_text()
     assert "**Ride** for **1h 02m**" in path.read_text()
-    assert path.read_text().count("Strava updates are unavailable right now") == 1
+    assert "unavailable" not in path.read_text()
+    assert "Strava update failed" in capsys.readouterr().err
     assert update_profile(path) == 1
-    assert path.read_text().count("Strava updates are unavailable right now") == 1
+    assert "unavailable" not in path.read_text()
+    assert "Strava update failed" in capsys.readouterr().err
 
 
 def test_unexpected_data_preserves_profile(monkeypatch, tmp_path):
@@ -196,7 +199,7 @@ def test_authentication_error_redacts_code(monkeypatch, capsys, manager):
 
 
 @pytest.mark.parametrize("old_workout", ["My last workout was **No Activity** for **0m**", "No workouts yet."])
-def test_workout_failure_has_friendly_message_and_recovers(monkeypatch, tmp_path, old_workout):
+def test_workout_failure_preserves_recording_and_recovers(monkeypatch, tmp_path, old_workout):
     from app.profile import update_profile
 
     path = tmp_path / "README.md"
@@ -213,10 +216,11 @@ def test_workout_failure_has_friendly_message_and_recovers(monkeypatch, tmp_path
 
     monkeypatch.setattr(subprocess, "run", run)
     assert update_profile(path) == 1
-    assert "Workouts unavailable." in path.read_text()
-    assert "No Activity" not in path.read_text()
+    assert f"- <samp> 🏋🏼‍♂️ {old_workout} </samp><br>\n" in path.read_text()
+    assert "unavailable" not in path.read_text()
     assert update_profile(path) == 1
-    assert path.read_text().count("Workouts unavailable.") == 1
+    assert f"- <samp> 🏋🏼‍♂️ {old_workout} </samp><br>\n" in path.read_text()
+    assert "unavailable" not in path.read_text()
     failed = False
     assert update_profile(path) == 0
     assert "**Ride** for **45m**" in path.read_text()

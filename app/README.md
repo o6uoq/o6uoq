@@ -37,9 +37,9 @@ It refreshes the Google access token in memory using Google's OAuth library. Goo
 
 Steps use Google's reconciled `dailyRollUp` total (`steps.countSum`). Sleep uses reconciled sessions ending on that civil date and sums `summary.minutesAsleep`, including naps. Both use the same UTC date label as the old updater; the API interprets observations using their recorded local civil times. No sleep-stage algorithm is implemented locally.
 
-Missing observations are unavailable, not measured zero. Before device sync or the first sleep session ending today, Google Health can return no observations; the updater retains the previous health line, marks it unavailable and fails the run. Explicitly observed zero steps are valid.
+Missing observations are unavailable, not measured zero. Before device sync or the first sleep session ending today, Google Health can return no observations; the updater retains the previous health values, labels them "Last recorded" and fails the run. Explicitly observed zero steps are valid.
 
-Strava is independent: a failure in either service preserves that service's previous data, allows the other service to update, then fails the workflow. A later successful fetch clears the unavailable notice. A green run alone does not establish accuracy; compare the published values with the provider.
+Strava is independent: a failure in either service preserves that service's previous data, allows the other service to update, then fails the workflow. Errors appear in Actions logs and the run status, without adding error notices to the profile page. A green run alone does not establish accuracy; compare the published values with the provider.
 
 For local Google Health reads, set the same three environment variables (or put them in a private root `.env`), then run:
 
