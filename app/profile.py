@@ -27,22 +27,6 @@ def replace_line(text: str, prefix: str, replacement: str) -> str:
     return "".join(lines)
 
 
-def mark_unavailable(text: str, prefix: str) -> str:
-    note = " <sub>Update unavailable; previous data shown</sub>"
-    for line in text.splitlines():
-        if line.startswith(prefix):
-            if prefix == "- <samp> 🏋🏼‍♂️ ":
-                strava_note = " <sub>Strava updates are unavailable right now</sub>"
-                if any(value in line for value in ("**No Activity**", "No workouts yet.", "Workouts unavailable")):
-                    line = prefix + "Workouts unavailable. </samp><br>"
-                else:
-                    line = line.removesuffix(note).removesuffix(strava_note) + strava_note
-            elif not line.endswith(note):
-                line += note
-            return replace_line(text, prefix, line)
-    return text
-
-
 def update_profile(path: Path) -> int:
     text = path.read_text()
     failed = False
@@ -58,7 +42,6 @@ def update_profile(path: Path) -> int:
         )
     except (RuntimeError, ValueError, subprocess.TimeoutExpired) as error:
         print(f"Google Health update failed: {error}", file=sys.stderr)
-        text = mark_unavailable(text, "- <samp> 🚶🏼‍♂️ ")
         text = text.replace("Today I have walked", "Last recorded: I walked", 1)
         failed = True
     try:
@@ -74,7 +57,6 @@ def update_profile(path: Path) -> int:
     except (RuntimeError, ValueError, subprocess.TimeoutExpired) as error:
         print(f"Strava update failed: {error}", file=sys.stderr)
         failed = True
-        text = mark_unavailable(text, "- <samp> 🏋🏼‍♂️ ")
     path.write_text(text)
     return int(failed)
 
